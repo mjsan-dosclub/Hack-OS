@@ -37,22 +37,22 @@ export default function LoginPage() {
 		setBusy(true);
 		const { error: authError } = await supabase.auth.signInWithOtp({
 			email: parsed.data.email,
-			// The email confirmation links the new identity to an existing roster
-			// row. Middleware still denies all unverified and non-member accounts.
+			// Member access is matched to the preloaded roster. Admin access is
+			// granted separately through the trusted application role.
 			options: { shouldCreateUser: true },
 		});
 		setBusy(false);
 		if (authError) {
 			// Avoid disclosing whether an address is in the club roster.
 			setMessage(
-				"If this email belongs to a club member, a sign-in code will arrive shortly.",
+				"If this is an approved DeScience account, a sign-in code will arrive shortly.",
 			);
 			setCodeSent(true);
 			return;
 		}
 		setCodeSent(true);
 		setMessage(
-			"If this email belongs to a club member, a sign-in code will arrive shortly.",
+			"If this is an approved DeScience account, a sign-in code will arrive shortly.",
 		);
 	}
 
@@ -101,8 +101,8 @@ export default function LoginPage() {
 						Sign in without a password
 					</h1>
 					<p className="mt-2 text-sm leading-6 text-slate-400">
-						Use the email address on your club membership. The member workspace
-						also requires an authenticator app.
+						Use the email address approved for your DeScience account. Member
+						and admin access also require an authenticator app.
 					</p>
 					<form
 						className="mt-7 space-y-4"
@@ -112,7 +112,7 @@ export default function LoginPage() {
 							className="block text-sm text-slate-300"
 							htmlFor="member-email"
 						>
-							Club email
+							DeScience account email
 						</label>
 						<div className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/20 px-4 focus-within:border-cyan-200/50">
 							<Mail size={17} className="text-slate-500" />
