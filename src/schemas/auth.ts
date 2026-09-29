@@ -12,6 +12,12 @@ export const emailOtpRequestSchema = z
 	.object({ email: memberEmailSchema })
 	.strict();
 
+export const emailOtpRequestResponseSchema = z
+	.object({
+		message: z.string().min(1),
+	})
+	.strict();
+
 export const emailOtpVerifySchema = z
 	.object({
 		email: memberEmailSchema,

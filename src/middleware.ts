@@ -1,13 +1,17 @@
-import { createServerClient } from "@supabase/ssr";
 import type { SetAllCookies } from "@supabase/ssr";
-import { NextResponse, type NextRequest } from "next/server";
-import { memberAccessSchema } from "./schemas/auth";
+import { createServerClient } from "@supabase/ssr";
+import { type NextRequest, NextResponse } from "next/server";
 import { getPublicSupabaseEnv } from "./lib/supabase/env";
+import { memberAccessSchema } from "./schemas/auth";
 
 const MEMBER_PATHS = ["/members", "/apps/synergy", "/api/synergy"];
 const ADMIN_PATHS = ["/admin", "/api/admin"];
 const COPILOT_PATHS = ["/api/copilot/chat", "/api/copilot/evaluate"];
-const RATE_LIMITED_API_PATHS = [...COPILOT_PATHS, "/api/activity/track"];
+const RATE_LIMITED_API_PATHS = [
+	...COPILOT_PATHS,
+	"/api/activity/track",
+	"/api/auth/request-otp",
+];
 
 /**
  * Best-effort per-isolate token bucket. Serverless instances do not share memory;
@@ -54,7 +58,7 @@ function rateLimitResponse(request: NextRequest): NextResponse | null {
 		buckets.set(key, bucket);
 		const retryAfter = Math.ceil((1 - bucket.tokens) / REFILL_PER_SECOND);
 		return NextResponse.json(
-			{ error: "Too many AI requests. Please wait before trying again." },
+			{ error: "Too many requests. Please wait before trying again." },
 			{
 				status: 429,
 				headers: {
@@ -185,6 +189,7 @@ export const config = {
 		"/api/synergy/:path*",
 		"/admin/:path*",
 		"/api/admin/:path*",
+		"/api/auth/request-otp",
 		"/api/copilot/chat",
 		"/api/copilot/evaluate",
 	],

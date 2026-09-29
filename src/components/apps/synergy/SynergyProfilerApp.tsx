@@ -388,7 +388,7 @@ export function SynergyProfilerApp() {
 								className={`h-1 rounded-full ${index <= step ? "bg-cyan-200" : "bg-white/10"}`}
 							/>
 							<p
-								className={`mt-2 truncate text-[10px] ${index === step ? "text-cyan-100" : "text-slate-500"}`}
+								className={`mt-2 truncate text-xs ${index === step ? "text-cyan-100" : "text-slate-500"}`}
 							>
 								{index + 1}. {name}
 							</p>

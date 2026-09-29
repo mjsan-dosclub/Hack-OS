@@ -4,7 +4,11 @@ import { ArrowLeft, LoaderCircle, Mail, ShieldCheck } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { type FormEvent, useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { emailOtpRequestSchema, emailOtpVerifySchema } from "@/schemas/auth";
+import {
+	emailOtpRequestResponseSchema,
+	emailOtpRequestSchema,
+	emailOtpVerifySchema,
+} from "@/schemas/auth";
 
 function safeNextPath(value: string | null): string {
 	return value?.startsWith("/") &&
@@ -35,25 +39,32 @@ export default function LoginPage() {
 			return;
 		}
 		setBusy(true);
-		const { error: authError } = await supabase.auth.signInWithOtp({
-			email: parsed.data.email,
-			// Member access is matched to the preloaded roster. Admin access is
-			// granted separately through the trusted application role.
-			options: { shouldCreateUser: true },
-		});
+		let response: Response;
+		try {
+			response = await fetch("/api/auth/request-otp", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ email: parsed.data.email }),
+			});
+		} catch {
+			setBusy(false);
+			setError("Sign-in is temporarily unavailable. Try again shortly.");
+			return;
+		}
 		setBusy(false);
-		if (authError) {
-			// Avoid disclosing whether an address is in the club roster.
-			setMessage(
-				"If this is an approved DeScience account, a sign-in code will arrive shortly.",
-			);
-			setCodeSent(true);
+		if (!response.ok) {
+			setError("Sign-in is temporarily unavailable. Try again shortly.");
+			return;
+		}
+		const responseBody: unknown = await response.json().catch(() => null);
+		const parsedResponse =
+			emailOtpRequestResponseSchema.safeParse(responseBody);
+		if (!parsedResponse.success) {
+			setError("Sign-in is temporarily unavailable. Try again shortly.");
 			return;
 		}
 		setCodeSent(true);
-		setMessage(
-			"If this is an approved DeScience account, a sign-in code will arrive shortly.",
-		);
+		setMessage(parsedResponse.data.message);
 	}
 
 	async function verifyCode(event: FormEvent<HTMLFormElement>) {
