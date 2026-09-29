@@ -15,7 +15,6 @@ import {
 	UsersRound,
 } from "lucide-react";
 import { type FormEvent, useState } from "react";
-import { recordFeatureUse } from "@/lib/activity/trackClient";
 import {
 	type SynergyMatchResponse,
 	synergyMatchResponseSchema,
@@ -348,7 +347,6 @@ export function SynergyProfilerApp() {
 					"The match response did not match the expected data format.",
 				);
 			setResults(parsed.data);
-			recordFeatureUse("teammate_match");
 			setStep(3);
 		} catch (caught) {
 			setError(

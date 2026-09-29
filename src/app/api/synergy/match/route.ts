@@ -21,6 +21,7 @@ import {
 	hackathons,
 	hackathonTagLinks,
 	hackathonTags,
+	memberActivityEvents,
 	memberLibraryChunks,
 	memberLibraryFiles,
 	type RecentProject,
@@ -335,29 +336,36 @@ export async function POST(request: Request) {
 		}
 
 		const input = parsed.data;
-		await db
-			.update(clubMembers)
-			.set({
-				aiMatchingConsentAt: input.allowProfileForAiMatching
-					? new Date()
-					: null,
-			})
-			.where(eq(clubMembers.id, member.id));
-		const [savedRequest] = await db
-			.insert(studentHackathonRequests)
-			.values({
+		const savedRequest = await db.transaction(async (transaction) => {
+			await transaction
+				.update(clubMembers)
+				.set({
+					aiMatchingConsentAt: input.allowProfileForAiMatching
+						? new Date()
+						: null,
+				})
+				.where(eq(clubMembers.id, member.id));
+			const [requestRow] = await transaction
+				.insert(studentHackathonRequests)
+				.values({
+					userId: user.id,
+					fieldOfInterest: input.fieldOfInterest,
+					studentSkills: input.studentSkills,
+					techComfort: input.techComfort,
+					rolesSought: input.rolesSought,
+					concerns: input.concerns,
+					contributionSummary: input.contributionSummary,
+					locationCity: input.locationCity,
+					travelFlexibility: input.travelFlexibility,
+					aiConsentAt: input.allowAiMatching ? new Date() : null,
+				})
+				.returning({ id: studentHackathonRequests.id });
+			await transaction.insert(memberActivityEvents).values({
 				userId: user.id,
-				fieldOfInterest: input.fieldOfInterest,
-				studentSkills: input.studentSkills,
-				techComfort: input.techComfort,
-				rolesSought: input.rolesSought,
-				concerns: input.concerns,
-				contributionSummary: input.contributionSummary,
-				locationCity: input.locationCity,
-				travelFlexibility: input.travelFlexibility,
-				aiConsentAt: input.allowAiMatching ? new Date() : null,
-			})
-			.returning({ id: studentHackathonRequests.id });
+				activity: "teammate_match",
+			});
+			return requestRow;
+		});
 
 		const now = new Date();
 		const eventRows = await db
