@@ -91,12 +91,39 @@ export default function LoginPage() {
 		});
 		setBusy(false);
 		if (authError) {
+			setBusy(false);
 			setError(
 				"That code could not be verified. Request a fresh code and try again.",
 			);
 			return;
 		}
-		window.location.assign(nextPath);
+		const { data: assurance, error: assuranceError } =
+			await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+		if (assuranceError) {
+			setBusy(false);
+			setError(
+				"Email verified, but authenticator status could not be checked. Refresh and try again.",
+			);
+			return;
+		}
+		if (assurance.currentLevel === "aal2") {
+			window.location.assign(nextPath);
+			return;
+		}
+		const { data: factors, error: factorError } =
+			await supabase.auth.mfa.listFactors();
+		if (factorError) {
+			setBusy(false);
+			setError(
+				"Email verified, but authenticator status could not be loaded. Refresh and try again.",
+			);
+			return;
+		}
+		const hasVerifiedTotp = factors.totp.some(
+			(factor) => factor.status === "verified",
+		);
+		const mfaPath = hasVerifiedTotp ? "/auth/mfa/verify" : "/auth/mfa/setup";
+		window.location.assign(`${mfaPath}?next=${encodeURIComponent(nextPath)}`);
 	}
 
 	return (
