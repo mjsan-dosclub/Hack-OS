@@ -72,6 +72,33 @@ export const bulkManualEventsResultSchema = z
 	.object({
 		added: z.number().int().nonnegative(),
 		duplicatesSkipped: z.number().int().nonnegative(),
+		issueCount: z.number().int().nonnegative(),
+		issues: z.array(
+			z
+				.object({
+					rowNumber: z.number().int().positive(),
+					messages: z.array(z.string().min(1)),
+					values: z
+						.object({
+							title: z.string(),
+							organizer: z.string(),
+							official_url: z.string(),
+							description: z.string(),
+							banner_url: z.string(),
+							format: z.string(),
+							venue_city: z.string(),
+							venue_country: z.string(),
+							start_date: z.string(),
+							end_date: z.string(),
+							registration_deadline: z.string(),
+							application_status: z.string(),
+							prize_currency: z.string(),
+							total_prize_value: z.string(),
+						})
+						.strict(),
+				})
+				.strict(),
+		),
 	})
 	.strict();
 

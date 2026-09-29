@@ -1,6 +1,7 @@
 import { inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import * as XLSX from "xlsx";
+import type { z } from "zod";
 import { getDatabase } from "@/db/client";
 import { hackathons } from "@/db/schema";
 import {
@@ -9,7 +10,6 @@ import {
 } from "@/lib/auth/requireVerifiedMember";
 import {
 	bulkManualEventsResultSchema,
-	bulkManualEventsSchema,
 	manualEventSchema,
 } from "@/schemas/moderation";
 
@@ -18,6 +18,15 @@ export const dynamic = "force-dynamic";
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const MAX_EVENT_ROWS = 500;
+type EventDraft = z.infer<typeof manualEventSchema>;
+type EventImportIssue = z.infer<
+	typeof bulkManualEventsResultSchema
+>["issues"][number];
+type ParsedEventRow = {
+	rowNumber: number;
+	event: EventDraft;
+	values: EventImportIssue["values"];
+};
 
 function headerKey(value: string): string {
 	return value.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -37,15 +46,32 @@ function nullable(value: string): string | null {
 	return value.length ? value : null;
 }
 
-function parseDate(value: string, field: string, rowNumber: number): string {
+function parseDate(value: string): string {
 	const time = Date.parse(value);
-	if (!value || !Number.isFinite(time)) {
-		throw new Error(`Row ${rowNumber}: enter a valid ${field} date and time.`);
-	}
-	return new Date(time).toISOString();
+	return value && Number.isFinite(time) ? new Date(time).toISOString() : "";
 }
 
-function parseBulkEvents(fileName: string, bytes: Buffer) {
+function issueMessage(issue: z.ZodIssue): string {
+	const field = issue.path[0];
+	if (field === "format" && issue.code === "invalid_enum_value")
+		return "Format must be online, in-person, or hybrid.";
+	if (field === "applicationStatus" && issue.code === "invalid_enum_value")
+		return "Status must be upcoming, open, closed, or ended.";
+	if (field === "startDate" && issue.message === "Invalid datetime")
+		return "Enter a valid start date and time.";
+	if (field === "endDate" && issue.message === "Invalid datetime")
+		return "Enter a valid end date and time.";
+	if (field === "registrationDeadline" && issue.message === "Invalid datetime")
+		return "Enter a valid registration deadline, or leave it blank.";
+	if (field === "totalPrizeValue" && issue.code === "too_small")
+		return "Prize value must be zero or greater.";
+	return `${typeof field === "string" ? field : "Event"}: ${issue.message}`;
+}
+
+function parseBulkEvents(
+	fileName: string,
+	bytes: Buffer,
+): { events: ParsedEventRow[]; issues: EventImportIssue[] } {
 	if (!/\.(xlsx|xls|csv)$/i.test(fileName)) {
 		throw new Error("Upload an Excel workbook or CSV file.");
 	}
@@ -73,96 +99,99 @@ function parseBulkEvents(fileName: string, bytes: Buffer) {
 	if (rows.length > MAX_EVENT_ROWS) {
 		throw new Error(`Upload at most ${MAX_EVENT_ROWS} events at a time.`);
 	}
-	const events = rows.map((row, index) => {
+	const events: ParsedEventRow[] = [];
+	const issues: EventImportIssue[] = [];
+	rows.forEach((row, index) => {
 		const rowNumber = index + 2;
-		const formatValue = value(row, ["format", "event format"])
+		const formatText = value(row, ["format", "event format"])
 			.toLowerCase()
 			.replaceAll("_", "-");
-		const statusValue = value(row, [
+		const statusText = value(row, [
 			"application status",
 			"registration status",
 			"status",
 		]).toLowerCase();
-		const currency =
-			value(row, ["prize currency", "currency"]).toUpperCase() || "INR";
-		const prizeText = value(row, [
+		const currencyText = value(row, ["prize currency", "currency"]);
+		const prizeSource = value(row, [
 			"total prize value",
 			"prize value",
 			"prize pool",
-		]).replace(/[^0-9.-]/g, "");
+		]);
+		const prizeText = prizeSource.replace(/[^0-9.-]/g, "");
 		const prizeValue = prizeText ? Number(prizeText) : 0;
+		const title = value(row, ["title", "event title", "hackathon"]);
+		const organizer = value(row, ["organizer", "host", "organization"]);
+		const officialUrl = value(row, [
+			"official url",
+			"website url",
+			"website",
+			"url",
+			"registration link",
+		]);
+		const description = value(row, ["description", "summary"]);
+		const bannerUrl = value(row, [
+			"banner url",
+			"banner image url",
+			"image url",
+		]);
+		const venueCity = value(row, ["venue city", "city", "location city"]);
+		const venueCountry = value(row, [
+			"venue country",
+			"country",
+			"location country",
+		]);
+		const startText = value(row, ["start date", "start", "event start"]);
+		const endText = value(row, ["end date", "end", "event end"]);
+		const deadlineText = value(row, [
+			"registration deadline",
+			"deadline",
+			"application deadline",
+		]);
+		const values = {
+			title,
+			organizer,
+			official_url: officialUrl,
+			description,
+			banner_url: bannerUrl,
+			format: formatText || "online",
+			venue_city: venueCity,
+			venue_country: venueCountry,
+			start_date: startText,
+			end_date: endText,
+			registration_deadline: deadlineText,
+			application_status: statusText || "upcoming",
+			prize_currency: currencyText.toUpperCase() || "INR",
+			total_prize_value: prizeSource || "0",
+		};
 		const parsed = manualEventSchema.safeParse({
-			title: value(row, ["title", "event title", "hackathon"]),
-			description: value(row, ["description", "summary"]),
-			organizer: value(row, ["organizer", "host", "organization"]),
-			websiteUrl: value(row, [
-				"official url",
-				"website url",
-				"website",
-				"url",
-				"registration link",
-			]),
-			bannerUrl: nullable(
-				value(row, ["banner url", "banner image url", "image url"]),
-			),
-			format:
-				formatValue === "in-person" || formatValue === "hybrid"
-					? formatValue
-					: "online",
-			venueCity: nullable(value(row, ["venue city", "city", "location city"])),
-			venueCountry: nullable(
-				value(row, ["venue country", "country", "location country"]),
-			),
-			startDate: parseDate(
-				value(row, ["start date", "start", "event start"]),
-				"start",
-				rowNumber,
-			),
-			endDate: parseDate(
-				value(row, ["end date", "end", "event end"]),
-				"end",
-				rowNumber,
-			),
-			registrationDeadline: value(row, [
-				"registration deadline",
-				"deadline",
-				"application deadline",
-			])
-				? parseDate(
-						value(row, [
-							"registration deadline",
-							"deadline",
-							"application deadline",
-						]),
-						"registration deadline",
-						rowNumber,
-					)
-				: null,
-			applicationStatus:
-				statusValue === "open" ||
-				statusValue === "closed" ||
-				statusValue === "ended"
-					? statusValue
-					: "upcoming",
-			prizeCurrency: currency,
+			title,
+			description,
+			organizer,
+			websiteUrl: officialUrl,
+			bannerUrl: nullable(bannerUrl),
+			format: formatText || "online",
+			venueCity: nullable(venueCity),
+			venueCountry: nullable(venueCountry),
+			startDate: parseDate(startText),
+			endDate: parseDate(endText),
+			registrationDeadline: deadlineText ? parseDate(deadlineText) : null,
+			applicationStatus: statusText || "upcoming",
+			prizeCurrency: currencyText.toUpperCase() || "INR",
 			totalPrizeValue: Number.isFinite(prizeValue)
 				? Math.round(prizeValue)
 				: -1,
 		});
 		if (!parsed.success) {
-			throw new Error(
-				`Row ${rowNumber}: ${parsed.error.issues[0]?.message ?? "check this event's fields."}`,
-			);
+			issues.push({
+				rowNumber,
+				messages: [...new Set(parsed.error.issues.map(issueMessage))],
+				values,
+			});
+			return;
 		}
-		return parsed.data;
+		events.push({ rowNumber, event: parsed.data, values });
 	});
-	const validated = bulkManualEventsSchema.safeParse(events);
-	if (!validated.success) {
-		throw new Error(
-			validated.error.issues[0]?.message ?? "Check the event fields.",
-		);
-	}
-	return validated.data;
+	return { events, issues };
 }
 
 export async function POST(request: Request) {
@@ -195,9 +224,9 @@ export async function POST(request: Request) {
 				{ status: 413 },
 			);
 		}
-		let events: ReturnType<typeof parseBulkEvents>;
+		let parsedEvents: ReturnType<typeof parseBulkEvents>;
 		try {
-			events = parseBulkEvents(
+			parsedEvents = parseBulkEvents(
 				file.name,
 				Buffer.from(await file.arrayBuffer()),
 			);
@@ -214,8 +243,8 @@ export async function POST(request: Request) {
 		}
 		const db = getDatabase();
 		const seenUrls = new Set<string>();
-		const uniqueEvents = events.filter((event) => {
-			const key = event.websiteUrl.toLowerCase().replace(/\/$/, "");
+		const uniqueEvents = parsedEvents.events.filter((row) => {
+			const key = row.event.websiteUrl.toLowerCase().replace(/\/$/, "");
 			if (seenUrls.has(key)) return false;
 			seenUrls.add(key);
 			return true;
@@ -227,7 +256,7 @@ export async function POST(request: Request) {
 					.where(
 						inArray(
 							hackathons.websiteUrl,
-							uniqueEvents.map((event) => event.websiteUrl),
+							uniqueEvents.map((row) => row.event.websiteUrl),
 						),
 					)
 			: [];
@@ -237,11 +266,12 @@ export async function POST(request: Request) {
 			),
 		);
 		const toCreate = uniqueEvents.filter(
-			(event) =>
-				!existingSet.has(event.websiteUrl.toLowerCase().replace(/\/$/, "")),
+			(row) =>
+				!existingSet.has(row.event.websiteUrl.toLowerCase().replace(/\/$/, "")),
 		);
 		await db.transaction(async (tx) => {
-			for (const event of toCreate) {
+			for (const row of toCreate) {
+				const event = row.event;
 				const baseSlug =
 					event.title
 						.toLowerCase()
@@ -266,7 +296,9 @@ export async function POST(request: Request) {
 		});
 		const result = bulkManualEventsResultSchema.safeParse({
 			added: toCreate.length,
-			duplicatesSkipped: events.length - toCreate.length,
+			duplicatesSkipped: parsedEvents.events.length - toCreate.length,
+			issueCount: parsedEvents.issues.length,
+			issues: parsedEvents.issues,
 		});
 		if (!result.success)
 			throw new Error("The import summary response was invalid.");
