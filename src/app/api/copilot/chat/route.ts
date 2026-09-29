@@ -7,11 +7,20 @@ import {
 	summarizeHackathonContext,
 	summarizeTeam,
 } from "@/lib/copilot/prompts";
+import type { CopilotMode } from "@/schemas/copilot";
 import { copilotChatRequestSchema } from "@/schemas/copilot";
 import { jarvisLabsConfigSchema } from "@/schemas/ideator";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
+
+// Keep common responses quick while leaving room for the architecture spec.
+const MAX_OUTPUT_TOKENS: Record<CopilotMode, number> = {
+	brainstorm: 1_400,
+	architecture: 2_600,
+	evaluate: 1_400,
+	sprint: 1_400,
+};
 
 type ProviderName = "jarvislabs";
 interface ProviderModel {
@@ -129,7 +138,7 @@ export async function POST(request: Request): Promise<Response> {
 				system,
 				messages,
 				abortSignal: request.signal,
-				maxOutputTokens: 3_500,
+				maxOutputTokens: MAX_OUTPUT_TOKENS[mode],
 				maxRetries: 0,
 				temperature: 0.5,
 				onError: ({ error }) => logProviderFailure(candidate.name, error),

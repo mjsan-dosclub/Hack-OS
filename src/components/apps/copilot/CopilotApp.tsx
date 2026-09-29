@@ -187,7 +187,7 @@ export function CopilotApp() {
 		const visibleHistory = [
 			...priorMessages,
 			{ role: "user" as const, content: text },
-		].slice(-24);
+		].slice(-8);
 		setMessages((current) => [...current, userMessage]);
 		setBusy(true);
 

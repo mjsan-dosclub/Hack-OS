@@ -31,7 +31,7 @@ export const copilotChatRequestSchema = z
 		mode: copilotModeSchema,
 		context: hackathonDisplaySchema.nullable(),
 		team: teamProfileSchema,
-		messages: z.array(copilotMessageSchema).min(1).max(24),
+		messages: z.array(copilotMessageSchema).min(1).max(8),
 	})
 	.strict();
 
