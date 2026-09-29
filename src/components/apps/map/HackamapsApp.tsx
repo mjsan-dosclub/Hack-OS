@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { HackathonDetailDrawer } from "@/components/apps/radar/HackathonDetailDrawer";
 import { MapEventCard } from "@/components/apps/map/MapEventCard";
-import { MOCK_HACKATHONS } from "@/lib/mockHackathons";
+import { usePublishedHackathons } from "@/hooks/usePublishedHackathons";
 import { useWindowManager } from "@/stores/useWindowManager";
 import type { Hackathon } from "@/types/hackathon";
 import type {
@@ -35,8 +35,9 @@ const MapCanvas = dynamic(
 	},
 );
 
-type Region = "india" | "online";
+type Region = "all" | "india" | "online";
 const REGION_LABELS: ReadonlyArray<{ id: Region; label: string }> = [
+	{ id: "all", label: "India + online" },
 	{ id: "india", label: "India" },
 	{ id: "online", label: "Online" },
 ];
@@ -59,6 +60,7 @@ function distanceKm(
 
 function inRegion(event: Hackathon, region: Region): boolean {
 	if (region === "online") return event.format === "online";
+	if (region === "all" && event.format === "online") return true;
 	const point = event.coordinates;
 	if (event.format === "online") return false;
 	const country = event.venueCountry?.trim().toLocaleLowerCase();
@@ -96,7 +98,8 @@ function startIdeationText(event: Hackathon): string {
 
 /** Synchronized event list + Leaflet map with optional browser geolocation. */
 export function HackamapsApp() {
-	const [region, setRegion] = useState<Region>("india");
+	const { events, loading, error, refresh } = usePublishedHackathons();
+	const [region, setRegion] = useState<Region>("all");
 	const [search, setSearch] = useState("");
 	const [focus, setFocus] = useState<MapFocus>(DEFAULT_FOCUS);
 	const [userLocation, setUserLocation] = useState<{
@@ -116,7 +119,7 @@ export function HackamapsApp() {
 
 	const visibleEvents = useMemo(
 		() =>
-			MOCK_HACKATHONS.filter((event) => {
+			events.filter((event) => {
 				if (!inRegion(event, region)) return false;
 				const text =
 					`${event.title} ${event.organizer} ${event.venueCity ?? ""} ${event.venueCountry ?? ""}`.toLocaleLowerCase();
@@ -131,7 +134,7 @@ export function HackamapsApp() {
 					return false;
 				return true;
 			}),
-		[nearbyOnly, region, search, userLocation],
+		[events, nearbyOnly, region, search, userLocation],
 	);
 	const clusters = useMemo(() => clusterEvents(visibleEvents), [visibleEvents]);
 
@@ -226,16 +229,19 @@ export function HackamapsApp() {
 					))}
 				</div>
 			</header>
-			{locationError && (
+			{(locationError || error) && (
 				<p
 					role="alert"
 					className="z-[500] flex items-center gap-2 border-b border-rose-200/10 bg-rose-200/[0.05] px-4 py-2 text-[10px] text-rose-100/80"
 				>
 					<AlertCircle className="size-3.5 shrink-0" />
-					{locationError}
+					{locationError || error}
 					<button
 						type="button"
-						onClick={() => setLocationError("")}
+						onClick={() => {
+							setLocationError("");
+							if (error) void refresh();
+						}}
 						aria-label="Dismiss location error"
 						className="ml-auto"
 					>
@@ -275,7 +281,14 @@ export function HackamapsApp() {
 						))}
 						{visibleEvents.length === 0 && (
 							<p className="rounded-lg border border-dashed border-white/10 p-5 text-center text-[10px] leading-5 text-white/40">
-								No events match this region and search.
+								{loading
+									? "Loading verified events…"
+									: events.length === 0
+										? "No approved events are live yet."
+										: region === "india" &&
+												events.some((event) => event.format === "online")
+											? "No India venue matches this search. Try Online for remote events."
+											: "No events match this region and search."}
 							</p>
 						)}
 					</div>
@@ -289,7 +302,10 @@ export function HackamapsApp() {
 						onSelect={selectEvent}
 						onInspect={setDetailEvent}
 					/>
-					{region === "online" && (
+					{(region === "online" ||
+						(visibleEvents.length > 0 &&
+							clusters.length === 0 &&
+							visibleEvents.every((event) => event.format === "online"))) && (
 						<p className="pointer-events-none absolute left-1/2 top-1/2 z-[400] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-white/10 bg-[#11141c]/85 px-4 py-3 text-center text-[10px] leading-5 text-white/60 backdrop-blur">
 							Online events have no venue pins.
 							<br />
@@ -307,7 +323,7 @@ export function HackamapsApp() {
 						type="button"
 						onClick={() => {
 							setNearbyOnly(false);
-							setRegion("india");
+							setRegion("all");
 							setFocus(DEFAULT_FOCUS);
 						}}
 						aria-label="Reset map view"

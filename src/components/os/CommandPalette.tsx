@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
 import {
 	Activity,
 	ArrowUpRight,
@@ -8,13 +7,15 @@ import {
 	Bot,
 	Command,
 	Globe2,
+	type LucideIcon,
 	Map as MapIcon,
 	Radar,
 	Search,
 	Terminal,
-	type LucideIcon,
+	UsersRound,
 } from "lucide-react";
-import { useWindowManager, type AppKey } from "@/stores/useWindowManager";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { type AppKey, useWindowManager } from "@/stores/useWindowManager";
 
 interface CommandPaletteProps {
 	open: boolean;
@@ -104,6 +105,14 @@ export function CommandPalette({
 				icon: Bot,
 			},
 			{
+				id: "synergy-engine",
+				title: "Open DeScience Synergy Engine",
+				detail: "Member-only hackathon, teammate, and mentor matching",
+				category: "Member Portal",
+				run: openApplication("synergy"),
+				icon: UsersRound,
+			},
+			{
 				id: "online-hackathons",
 				title: "Search Online Hackathons",
 				detail: "Open Radar with online events",
@@ -161,8 +170,8 @@ export function CommandPalette({
 			},
 			{
 				id: "wallpaper",
-				title: "Switch Wallpaper",
-				detail: "Cycle desktop background",
+				title: "Switch Desktop Theme",
+				detail: "Cycle through the available desktop themes",
 				category: "System",
 				run: onSwitchWallpaper,
 				icon: Globe2,
@@ -260,7 +269,7 @@ export function CommandPalette({
 	let lastCategory = "";
 	return (
 		<div
-			className="fixed inset-0 z-[1000] flex items-start justify-center bg-[#06080d]/55 px-4 pt-[12vh] backdrop-blur-md"
+			className="os-command-palette-backdrop fixed inset-0 z-[1000] flex items-start justify-center bg-[#06080d]/55 px-4 pt-[12vh] backdrop-blur-md"
 			onPointerDown={(event) => {
 				if (event.target === event.currentTarget) onClose();
 			}}
@@ -270,7 +279,7 @@ export function CommandPalette({
 				aria-modal="true"
 				aria-label="Command Palette"
 				onKeyDown={trapTab}
-				className="w-full max-w-xl overflow-hidden rounded-2xl border border-white/15 bg-[#171a23]/95 shadow-[0_25px_100px_rgba(0,0,0,0.6)] backdrop-blur-2xl"
+				className="os-command-palette w-full max-w-xl overflow-hidden rounded-2xl border border-white/15 bg-[#171a23]/95 shadow-[0_25px_100px_rgba(0,0,0,0.6)] backdrop-blur-2xl"
 			>
 				<div className="flex items-center gap-3 border-b border-white/10 px-4">
 					<Search className="size-4 text-cyan-200" />

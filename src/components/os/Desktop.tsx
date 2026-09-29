@@ -1,28 +1,25 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, LayoutGroup } from "framer-motion";
 import { BookOpen } from "lucide-react";
-import { CommandPalette } from "@/components/os/CommandPalette";
-import { Dock } from "@/components/os/Dock";
-import { MenuBar, type ClockMode } from "@/components/os/MenuBar";
-import { WindowFrame } from "@/components/os/WindowFrame";
-import { HackamapsApp } from "@/components/apps/map/HackamapsApp";
+import { useEffect, useRef, useState } from "react";
 import { CopilotApp } from "@/components/apps/copilot/CopilotApp";
-import { TerminalApp } from "@/components/apps/TerminalApp";
+import { HackamapsApp } from "@/components/apps/map/HackamapsApp";
 import { RadarApp } from "@/components/apps/radar/RadarApp";
 import { StartHereApp } from "@/components/apps/StartHereApp";
+import { SynergyProfilerApp } from "@/components/apps/synergy/SynergyProfilerApp";
+import { TerminalApp } from "@/components/apps/TerminalApp";
+import { CommandPalette } from "@/components/os/CommandPalette";
+import { DesktopDashboard } from "@/components/os/DesktopDashboard";
+import { Dock } from "@/components/os/Dock";
+import { type ClockMode, MenuBar } from "@/components/os/MenuBar";
+import { WindowFrame } from "@/components/os/WindowFrame";
+import { useDesktopAppearance } from "@/hooks/useDesktopAppearance";
 import {
+	type AppKey,
 	selectVisibleWindows,
 	useWindowManager,
-	type AppKey,
 } from "@/stores/useWindowManager";
-
-const WALLPAPERS = [
-	"radial-gradient(ellipse at 18% 25%, rgba(20, 101, 119, .40), transparent 42%), radial-gradient(ellipse at 82% 72%, rgba(77, 53, 129, .32), transparent 44%), linear-gradient(145deg, #0c1119, #141521 62%, #10151a)",
-	"radial-gradient(ellipse at 72% 18%, rgba(157, 78, 54, .34), transparent 42%), radial-gradient(ellipse at 22% 78%, rgba(123, 64, 117, .3), transparent 48%), linear-gradient(145deg, #171114, #17121c 62%, #11131a)",
-	"radial-gradient(ellipse at 48% 24%, rgba(33, 119, 94, .35), transparent 44%), radial-gradient(ellipse at 90% 80%, rgba(55, 78, 142, .28), transparent 48%), linear-gradient(145deg, #0d1715, #10191b 62%, #11131b)",
-];
 
 function AppContent({ appKey }: { appKey: AppKey }) {
 	switch (appKey) {
@@ -36,14 +33,16 @@ function AppContent({ appKey }: { appKey: AppKey }) {
 			return <CopilotApp />;
 		case "help":
 			return <StartHereApp />;
+		case "synergy":
+			return <SynergyProfilerApp />;
 	}
 	return null;
 }
 
-export function Desktop() {
+export function Desktop({ initialApp }: { initialApp?: AppKey } = {}) {
 	const [paletteOpen, setPaletteOpen] = useState(false);
 	const [clockMode, setClockMode] = useState<ClockMode>("24h");
-	const [wallpaperIndex, setWallpaperIndex] = useState(0);
+	const appearance = useDesktopAppearance();
 	const [welcomeOpen, setWelcomeOpen] = useState(false);
 	const desktopBoundsRef = useRef<HTMLDivElement>(null);
 	const windows = useWindowManager((state) => state.windows);
@@ -57,6 +56,10 @@ export function Desktop() {
 	const updateSize = useWindowManager((state) => state.updateSize);
 
 	useEffect(() => {
+		if (initialApp) {
+			openWindow(initialApp);
+			return;
+		}
 		try {
 			if (
 				window.localStorage.getItem("hack-os:welcome-dismissed:v1") !== "true"
@@ -66,7 +69,7 @@ export function Desktop() {
 		} catch {
 			setWelcomeOpen(true);
 		}
-	}, []);
+	}, [initialApp, openWindow]);
 
 	function dismissWelcome(openGuide: boolean): void {
 		setWelcomeOpen(false);
@@ -77,9 +80,6 @@ export function Desktop() {
 		}
 		if (openGuide) openWindow("help");
 	}
-
-	const toggleWallpaper = () =>
-		setWallpaperIndex((index) => (index + 1) % WALLPAPERS.length);
 
 	async function toggleFullscreen() {
 		if (document.fullscreenElement) {
@@ -137,12 +137,12 @@ export function Desktop() {
 				onPointerDown={(event) => {
 					if (event.target === event.currentTarget) unfocusAll();
 				}}
-				className="desktop-grain relative h-dvh min-h-[520px] overflow-hidden bg-[#0e1118] font-sans text-white selection:bg-cyan-200/25"
+				data-theme={appearance.theme}
+				className="desktop-root desktop-grain relative h-dvh min-h-[520px] overflow-hidden bg-[#0e1118] font-sans text-white selection:bg-cyan-200/25"
 			>
 				<div
 					aria-hidden="true"
-					className="pointer-events-none absolute inset-0 transition-[background] duration-700"
-					style={{ background: WALLPAPERS[wallpaperIndex] }}
+					className="desktop-wallpaper pointer-events-none absolute inset-0 transition-[background] duration-700"
 				/>
 				<div
 					aria-hidden="true"
@@ -152,6 +152,12 @@ export function Desktop() {
 				<MenuBar
 					clockMode={clockMode}
 					onClockModeChange={setClockMode}
+					theme={appearance.theme}
+					onThemeChange={appearance.setTheme}
+					fontSize={appearance.fontSize}
+					onFontSizeChange={appearance.setFontSize}
+					fontFamily={appearance.fontFamily}
+					onFontFamilyChange={appearance.setFontFamily}
 					onOpenTerminal={() => openWindow("terminal")}
 					onOpenHelp={() => openWindow("help")}
 					onOpenPalette={() => setPaletteOpen(true)}
@@ -166,6 +172,7 @@ export function Desktop() {
 					}}
 					className="absolute inset-x-0 bottom-[88px] top-11"
 				>
+					<DesktopDashboard />
 					<AnimatePresence initial={false}>
 						{windows
 							.filter((item) => item.isOpen && !item.isMinimized)
@@ -197,7 +204,7 @@ export function Desktop() {
 							role="dialog"
 							aria-modal="true"
 							aria-labelledby="welcome-title"
-							className="w-full max-w-lg rounded-2xl border border-white/15 bg-[#171b25]/95 p-6 shadow-2xl shadow-black/40 backdrop-blur-2xl"
+							className="os-welcome-dialog w-full max-w-lg rounded-2xl border border-white/15 bg-[#171b25]/95 p-6 shadow-2xl shadow-black/40 backdrop-blur-2xl"
 						>
 							<div className="grid size-11 place-items-center rounded-xl border border-cyan-100/20 bg-cyan-100/10 text-cyan-100">
 								<BookOpen className="size-5" />
@@ -246,7 +253,7 @@ export function Desktop() {
 					onToggleFullscreen={() => {
 						void toggleFullscreen();
 					}}
-					onSwitchWallpaper={toggleWallpaper}
+					onSwitchWallpaper={appearance.cycleTheme}
 				/>
 			</main>
 		</LayoutGroup>

@@ -1,9 +1,179 @@
 @import "tailwindcss";
 
-:root { color-scheme: dark; }
+:root { color-scheme: dark; font-size: 16px; --os-font-scale: 1; }
 * { box-sizing: border-box; }
 html, body { min-height: 100%; }
 body { margin: 0; background: #101218; color: #eef0f5; font-family: Arial, Helvetica, sans-serif; }
+
+html[data-os-font="large"] { font-size: 112.5%; --os-font-scale: 1.125; }
+html[data-os-font="largest"] { font-size: 125%; --os-font-scale: 1.25; }
+html[data-os-font-face="system"] body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+html[data-os-font-face="arial"] body { font-family: Arial, Helvetica, sans-serif; }
+
+/* Existing app screens use a number of fixed-pixel Tailwind text utilities.
+   Scale those utilities too, so the accessibility setting reaches legacy apps. */
+html[data-os-font="large"] [class~="text-[8px]"] { font-size: calc(8px * var(--os-font-scale)) !important; }
+html[data-os-font="large"] [class~="text-[9px]"] { font-size: calc(9px * var(--os-font-scale)) !important; }
+html[data-os-font="large"] [class~="text-[10px]"] { font-size: calc(10px * var(--os-font-scale)) !important; }
+html[data-os-font="large"] [class~="text-[11px]"] { font-size: calc(11px * var(--os-font-scale)) !important; }
+html[data-os-font="large"] [class~="text-[12px]"] { font-size: calc(12px * var(--os-font-scale)) !important; }
+html[data-os-font="large"] [class~="text-[13px]"] { font-size: calc(13px * var(--os-font-scale)) !important; }
+html[data-os-font="large"] [class~="text-[14px]"] { font-size: calc(14px * var(--os-font-scale)) !important; }
+html[data-os-font="large"] [class~="text-[15px]"] { font-size: calc(15px * var(--os-font-scale)) !important; }
+html[data-os-font="large"] [class~="text-[16px]"] { font-size: calc(16px * var(--os-font-scale)) !important; }
+html[data-os-font="large"] [class~="text-[18px]"] { font-size: calc(18px * var(--os-font-scale)) !important; }
+html[data-os-font="large"] [class~="text-[20px]"] { font-size: calc(20px * var(--os-font-scale)) !important; }
+html[data-os-font="largest"] [class~="text-[8px]"] { font-size: calc(8px * var(--os-font-scale)) !important; }
+html[data-os-font="largest"] [class~="text-[9px]"] { font-size: calc(9px * var(--os-font-scale)) !important; }
+html[data-os-font="largest"] [class~="text-[10px]"] { font-size: calc(10px * var(--os-font-scale)) !important; }
+html[data-os-font="largest"] [class~="text-[11px]"] { font-size: calc(11px * var(--os-font-scale)) !important; }
+html[data-os-font="largest"] [class~="text-[12px]"] { font-size: calc(12px * var(--os-font-scale)) !important; }
+html[data-os-font="largest"] [class~="text-[13px]"] { font-size: calc(13px * var(--os-font-scale)) !important; }
+html[data-os-font="largest"] [class~="text-[14px]"] { font-size: calc(14px * var(--os-font-scale)) !important; }
+html[data-os-font="largest"] [class~="text-[15px]"] { font-size: calc(15px * var(--os-font-scale)) !important; }
+html[data-os-font="largest"] [class~="text-[16px]"] { font-size: calc(16px * var(--os-font-scale)) !important; }
+html[data-os-font="largest"] [class~="text-[18px]"] { font-size: calc(18px * var(--os-font-scale)) !important; }
+html[data-os-font="largest"] [class~="text-[20px]"] { font-size: calc(20px * var(--os-font-scale)) !important; }
+
+.desktop-root { --os-accent: #a5f3fc; --os-accent-foreground: #10131a; }
+.desktop-root[data-theme="aurora"] { --os-accent: #c4b5fd; }
+.desktop-root[data-theme="ember"] { --os-accent: #fcd34d; }
+.desktop-root[data-theme="light"] { --os-accent: #0e7490; --os-accent-foreground: #fff; color: #17212b; }
+.desktop-wallpaper { background: radial-gradient(ellipse at 18% 25%, rgba(20,101,119,.40), transparent 42%), radial-gradient(ellipse at 82% 72%, rgba(77,53,129,.32), transparent 44%), linear-gradient(145deg,#0c1119,#141521 62%,#10151a); }
+.desktop-root[data-theme="aurora"] .desktop-wallpaper { background: radial-gradient(ellipse at 72% 18%,rgba(105,82,177,.35),transparent 42%),radial-gradient(ellipse at 22% 78%,rgba(42,117,130,.3),transparent 48%),linear-gradient(145deg,#10131b,#171522 62%,#10151a); }
+.desktop-root[data-theme="ember"] .desktop-wallpaper { background: radial-gradient(ellipse at 72% 18%,rgba(157,78,54,.34),transparent 42%),radial-gradient(ellipse at 22% 78%,rgba(123,64,117,.3),transparent 48%),linear-gradient(145deg,#171114,#17121c 62%,#11131a); }
+.desktop-root[data-theme="light"] .desktop-wallpaper { background: radial-gradient(ellipse at 14% 18%,rgba(103,232,249,.35),transparent 38%),radial-gradient(ellipse at 86% 72%,rgba(196,181,253,.26),transparent 42%),linear-gradient(145deg,#eaf4f6,#f4f5fa 58%,#e8edf2); }
+.desktop-root[data-theme="light"] .desktop-wallpaper::after { position: absolute; inset: 0; background-image: linear-gradient(rgba(15,23,42,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(15,23,42,.035) 1px,transparent 1px); background-size: 42px 42px; content: ""; }
+.desktop-root[data-theme="light"] .desktop-grain::before { opacity: .018; }
+.desktop-root[data-theme="light"] { color-scheme: light; }
+.desktop-root[data-theme="light"] header { border-color: rgba(15,23,42,.12); background: rgba(248,250,252,.84); box-shadow: 0 8px 24px rgba(15,23,42,.07); color: #17212b; }
+.desktop-root[data-theme="light"] header button { color: #334155; }
+.desktop-root[data-theme="light"] header button:hover { background: rgba(15,23,42,.07); }
+.desktop-root[data-theme="light"] header [class*="text-white"] { color: #475569; }
+.desktop-root[data-theme="light"] header [class*="text-cyan-"] { color: #0e7490; }
+.desktop-root[data-theme="light"] header [class*="bg-white"] { background-color: rgba(15,23,42,.04); }
+.desktop-root[data-theme="light"] header [class*="border-white"] { border-color: rgba(15,23,42,.12); }
+.desktop-root[data-theme="light"] header [role="menu"] { border-color: rgba(15,23,42,.13); background: rgba(255,255,255,.97); box-shadow: 0 20px 55px rgba(15,23,42,.18); }
+.desktop-root[data-theme="light"] header [role="menu"] [class*="text-white"] { color: #334155; }
+.desktop-root[data-theme="light"] header [role="menu"] [class*="text-white/35"] { color: #64748b; }
+.desktop-root[data-theme="light"] header [role="menu"] [class*="hover:bg-white"]:hover { background: rgba(15,23,42,.06); }
+.desktop-root[data-theme="light"] header [role="menu"] [class*="border-white"] { border-color: rgba(15,23,42,.13); }
+.desktop-root[data-theme="light"] header [role="menu"] [class*="text-cyan-"] { color: #0e7490; }
+
+/* Make every draggable mini-app use the light surface palette, including its
+   deeply nested cards, inputs, sidebars, code output, and empty states. */
+.desktop-root[data-theme="light"] .os-window-frame { border-color: rgba(51,65,85,.2); background: rgba(248,250,252,.97); color: #1e293b; box-shadow: 0 24px 64px rgba(15,23,42,.23); }
+.desktop-root[data-theme="light"] .os-window-frame > header { border-color: rgba(51,65,85,.12); background: rgba(226,232,240,.78); }
+.desktop-root[data-theme="light"] .os-window-frame [class*="bg-[#11141c]"],
+.desktop-root[data-theme="light"] .os-window-frame [class*="bg-[#11141d]"],
+.desktop-root[data-theme="light"] .os-window-frame [class*="bg-[#141720]"],
+.desktop-root[data-theme="light"] .os-window-frame [class*="bg-[#171a23]"],
+.desktop-root[data-theme="light"] .os-window-frame [class*="bg-[#10131b]"],
+.desktop-root[data-theme="light"] .os-window-frame [class*="bg-[#0c1017]"],
+.desktop-root[data-theme="light"] .os-window-frame [class*="bg-[#0c1119]"],
+.desktop-root[data-theme="light"] .os-window-frame [class*="bg-[#131820]"],
+.desktop-root[data-theme="light"] .os-window-frame [class*="bg-[#090d0d]"] { background-color: #f8fafc !important; }
+.desktop-root[data-theme="light"] .os-window-frame [class*="bg-black/"] { background-color: rgba(226,232,240,.66) !important; }
+.desktop-root[data-theme="light"] .os-window-frame [class*="bg-white/"] { background-color: rgba(15,23,42,.035) !important; }
+.desktop-root[data-theme="light"] .os-window-frame [class*="text-white"] { color: #334155 !important; }
+.desktop-root[data-theme="light"] .os-window-frame [class*="text-white/25"],
+.desktop-root[data-theme="light"] .os-window-frame [class*="text-white/30"],
+.desktop-root[data-theme="light"] .os-window-frame [class*="text-white/35"],
+.desktop-root[data-theme="light"] .os-window-frame [class*="text-white/40"],
+.desktop-root[data-theme="light"] .os-window-frame [class*="text-white/45"],
+.desktop-root[data-theme="light"] .os-window-frame [class*="text-white/50"],
+.desktop-root[data-theme="light"] .os-window-frame [class*="text-white/55"],
+.desktop-root[data-theme="light"] .os-window-frame [class*="text-slate-400"],
+.desktop-root[data-theme="light"] .os-window-frame [class*="text-slate-500"],
+.desktop-root[data-theme="light"] .os-window-frame [class*="text-slate-600"] { color: #64748b !important; }
+.desktop-root[data-theme="light"] .os-window-frame [class*="text-slate-100"],
+.desktop-root[data-theme="light"] .os-window-frame [class*="text-slate-200"],
+.desktop-root[data-theme="light"] .os-window-frame [class*="text-slate-300"] { color: #334155 !important; }
+.desktop-root[data-theme="light"] .os-window-frame [class*="border-white"],
+.desktop-root[data-theme="light"] .os-window-frame [class*="divide-white"] { border-color: rgba(51,65,85,.16) !important; }
+.desktop-root[data-theme="light"] .os-window-frame [class*="text-cyan-"] { color: #0e7490 !important; }
+.desktop-root[data-theme="light"] .os-window-frame [class*="text-emerald-"] { color: #047857 !important; }
+.desktop-root[data-theme="light"] .os-window-frame [class*="text-violet-"] { color: #6d28d9 !important; }
+.desktop-root[data-theme="light"] .os-window-frame [class*="text-fuchsia-"] { color: #a21caf !important; }
+.desktop-root[data-theme="light"] .os-window-frame [class*="text-amber-"] { color: #a16207 !important; }
+.desktop-root[data-theme="light"] .os-window-frame input:not([type="checkbox"]):not([type="radio"]),
+.desktop-root[data-theme="light"] .os-window-frame textarea,
+.desktop-root[data-theme="light"] .os-window-frame select { color: #1e293b; color-scheme: light; }
+.desktop-root[data-theme="light"] .os-window-frame input::placeholder,
+.desktop-root[data-theme="light"] .os-window-frame textarea::placeholder { color: #64748b !important; opacity: 1; }
+.desktop-root[data-theme="light"] .os-window-frame .hackmap-canvas { background: #e2e8f0; }
+.desktop-root[data-theme="light"] .os-window-frame .hackmap-canvas .leaflet-control-zoom a { border-color: rgba(51,65,85,.14) !important; background: #fff !important; color: #334155 !important; }
+.desktop-root[data-theme="light"] .os-window-frame .hackmap-canvas .leaflet-control-zoom a:hover { background: #e2e8f0 !important; color: #0e7490 !important; }
+.desktop-root[data-theme="light"] .os-window-frame .hackmap-canvas .leaflet-control-attribution { background: rgba(255,255,255,.9); color: #475569; }
+.desktop-root[data-theme="light"] .os-window-frame .hackmap-canvas .leaflet-control-attribution a { color: #0e7490; }
+
+.desktop-root[data-theme="light"] .desktop-dashboard { color: #17212b; }
+.desktop-root[data-theme="light"] .desktop-dashboard [class*="text-white"] { color: #334155; }
+.desktop-root[data-theme="light"] .desktop-dashboard [class*="bg-[#111923]"] { background-color: rgba(255,255,255,.72); }
+.desktop-root[data-theme="light"] .desktop-dashboard [class*="bg-black/20"],
+.desktop-root[data-theme="light"] .desktop-dashboard [class*="bg-black/15"] { background-color: rgba(255,255,255,.66); }
+.desktop-root[data-theme="light"] .desktop-dashboard [class*="border-white"] { border-color: rgba(15,23,42,.15); }
+.desktop-root[data-theme="light"] .desktop-dashboard [class*="text-white/45"],
+.desktop-root[data-theme="light"] .desktop-dashboard [class*="text-white/40"],
+.desktop-root[data-theme="light"] .desktop-dashboard [class*="text-white/55"],
+.desktop-root[data-theme="light"] .desktop-dashboard [class*="text-white/65"] { color: #526174; }
+.desktop-root[data-theme="light"] .desktop-dashboard h1 { color: #17212b; }
+.desktop-root[data-theme="light"] .desktop-dashboard button:hover { color: #0e7490; }
+
+.desktop-root[data-theme="light"] nav[aria-label="Application Dock"] { border-color: rgba(255,255,255,.85); background: rgba(248,250,252,.82); box-shadow: 0 14px 42px rgba(15,23,42,.2); }
+.desktop-root[data-theme="light"] nav[aria-label="Application Dock"] button:not(:hover) { border-color: rgba(15,23,42,.12); background: linear-gradient(180deg,rgba(255,255,255,.95),rgba(226,232,240,.88)); color: #334155; }
+.desktop-root[data-theme="light"] nav[aria-label="Application Dock"] a { border-color: rgba(109,40,217,.15); background: rgba(139,92,246,.1); color: #6d28d9; }
+.desktop-root[data-theme="light"] nav[aria-label="Application Dock"] button span:not([role="status"]) { border-color: rgba(15,23,42,.12); background: #fff; color: #334155; }
+
+.desktop-root[data-theme="light"] .os-command-palette { border-color: rgba(51,65,85,.18); background: rgba(248,250,252,.98); color: #1e293b; }
+.desktop-root[data-theme="light"] .os-command-palette [class*="text-white"] { color: #334155; }
+.desktop-root[data-theme="light"] .os-command-palette [class*="border-white"] { border-color: rgba(51,65,85,.15); }
+.desktop-root[data-theme="light"] .os-command-palette [class*="text-cyan-"] { color: #0e7490; }
+.desktop-root[data-theme="light"] .os-command-palette [class*="bg-white/"] { background-color: rgba(15,23,42,.045); }
+.desktop-root[data-theme="light"] .os-command-palette [class*="bg-cyan-"] { background-color: rgba(14,116,144,.12); }
+.desktop-root[data-theme="light"] .os-command-palette input::placeholder { color: #64748b !important; opacity: 1; }
+.desktop-root[data-theme="light"] .os-welcome-dialog { border-color: rgba(51,65,85,.18); background: rgba(248,250,252,.98); color: #1e293b; }
+.desktop-root[data-theme="light"] .os-welcome-dialog [class*="text-white"] { color: #334155; }
+.desktop-root[data-theme="light"] .os-welcome-dialog [class*="border-white"] { border-color: rgba(51,65,85,.15); }
+
+/* Appearance preferences also apply on member login, MFA, and admin pages. */
+html[data-os-theme="light"] body { background: #eef3f7; color: #1e293b; color-scheme: light; }
+html[data-os-theme="light"] .os-standalone-screen { background-color: #eef3f7 !important; color: #1e293b !important; color-scheme: light; }
+html[data-os-theme="light"] .os-standalone-screen section[class*="bg-slate-900"],
+html[data-os-theme="light"] .os-standalone-screen section[class*="bg-white/"] { border-color: rgba(51,65,85,.16); background-color: rgba(255,255,255,.88) !important; box-shadow: 0 22px 55px rgba(15,23,42,.1); }
+html[data-os-theme="light"] .os-standalone-screen [class*="bg-[#080d14]"],
+html[data-os-theme="light"] .os-standalone-screen [class*="bg-[#101218]"],
+html[data-os-theme="light"] .os-standalone-screen [class*="bg-[#181d25]"] { background-color: #eef3f7 !important; }
+html[data-os-theme="light"] .os-standalone-screen [class*="bg-black/"] { background-color: rgba(226,232,240,.68) !important; }
+html[data-os-theme="light"] .os-standalone-screen [class*="bg-white/"] { background-color: rgba(15,23,42,.035) !important; }
+html[data-os-theme="light"] .os-standalone-screen [class*="text-slate-100"],
+html[data-os-theme="light"] .os-standalone-screen [class*="text-slate-200"],
+html[data-os-theme="light"] .os-standalone-screen [class*="text-slate-300"] { color: #334155 !important; }
+html[data-os-theme="light"] .os-standalone-screen [class*="text-slate-400"],
+html[data-os-theme="light"] .os-standalone-screen [class*="text-slate-500"],
+html[data-os-theme="light"] .os-standalone-screen [class*="text-slate-600"] { color: #64748b !important; }
+html[data-os-theme="light"] .os-standalone-screen [class*="text-white"] { color: #334155 !important; }
+html[data-os-theme="light"] .os-standalone-screen [class*="text-cyan-"] { color: #0e7490 !important; }
+html[data-os-theme="light"] .os-standalone-screen [class*="text-emerald-"] { color: #047857 !important; }
+html[data-os-theme="light"] .os-standalone-screen [class*="text-amber-"] { color: #a16207 !important; }
+html[data-os-theme="light"] .os-standalone-screen [class*="text-rose-"] { color: #be123c !important; }
+html[data-os-theme="light"] .os-standalone-screen [class*="border-white"] { border-color: rgba(51,65,85,.16) !important; }
+html[data-os-theme="light"] .os-standalone-screen input,
+html[data-os-theme="light"] .os-standalone-screen textarea,
+html[data-os-theme="light"] .os-standalone-screen select { border-color: rgba(51,65,85,.2); background-color: rgba(255,255,255,.8); color: #1e293b; color-scheme: light; }
+html[data-os-theme="light"] .os-standalone-screen input::placeholder,
+html[data-os-theme="light"] .os-standalone-screen textarea::placeholder { color: #64748b !important; opacity: 1; }
+
+.os-standalone-screen a,
+.os-standalone-screen button:not(:disabled) { cursor: pointer; transition: transform .16s cubic-bezier(.2,.8,.2,1), box-shadow .16s ease, background-color .16s ease, border-color .16s ease, color .16s ease; }
+.os-standalone-screen button:disabled { cursor: wait; }
+.os-standalone-screen a:focus-visible,
+.os-standalone-screen button:focus-visible { outline: 2px solid #0891b2; outline-offset: 3px; }
+@media (hover: hover) {
+	.os-standalone-screen a:hover,
+	.os-standalone-screen button:not(:disabled):hover { transform: translateY(-1px); }
+}
+.os-standalone-screen button:not(:disabled):active { transform: translateY(0) scale(.98); }
 
 .desktop-grain::before {
   position: absolute;

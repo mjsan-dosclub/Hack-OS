@@ -16,6 +16,7 @@ import {
 	Radar,
 	Terminal,
 	Globe2,
+	UsersRound,
 } from "lucide-react";
 import {
 	APP_REGISTRY,
@@ -34,6 +35,7 @@ const APPLICATIONS = [
 	{ id: "terminal", Icon: Terminal },
 	{ id: "map", Icon: MapIcon },
 	{ id: "copilot", Icon: Bot },
+	{ id: "synergy", Icon: UsersRound },
 ] as const satisfies readonly { id: AppKey; Icon: LucideIcon }[];
 
 const CLUB_URL = "https://descienceosclub.com/";

@@ -51,6 +51,11 @@ export const APP_REGISTRY = {
 		icon: "help",
 		size: { width: 660, height: 560 },
 	},
+	synergy: {
+		title: "DeScience Synergy Engine",
+		icon: "users",
+		size: { width: 980, height: 700 },
+	},
 } as const;
 
 export type AppKey = keyof typeof APP_REGISTRY;

@@ -247,6 +247,12 @@ otp_expiry = 3600
 # subject = "You have been invited"
 # content_path = "./supabase/templates/invite.html"
 
+# The member sign-in screen verifies a six-digit code with verifyOtp(type: email).
+# Supabase sends a magic link unless the magic_link template contains .Token.
+[auth.email.template.magic_link]
+subject = "Your DeScience OS sign-in code"
+content_path = "./supabase/templates/magic_link.html"
+
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
 # enabled = true
@@ -292,15 +298,15 @@ message_service_sid = ""
 # DO NOT commit your Twilio auth token to git. Use environment variable substitution instead:
 auth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"
 
-# Multi-factor-authentication is available to Supabase Pro plan.
+# Members must complete TOTP before accessing private portal routes.
 [auth.mfa]
 # Control how many MFA factors can be enrolled at once per user.
 max_enrolled_factors = 10
 
 # Control MFA via App Authenticator (TOTP)
 [auth.mfa.totp]
-enroll_enabled = false
-verify_enabled = false
+enroll_enabled = true
+verify_enabled = true
 
 # Configure MFA via Phone Messaging
 [auth.mfa.phone]
