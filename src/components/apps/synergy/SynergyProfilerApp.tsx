@@ -1,7 +1,5 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { recordFeatureUse } from "@/lib/activity/trackClient";
 import { AnimatePresence, motion } from "framer-motion";
 import {
 	ArrowLeft,
@@ -16,9 +14,11 @@ import {
 	Sparkles,
 	UsersRound,
 } from "lucide-react";
+import { type FormEvent, useState } from "react";
+import { recordFeatureUse } from "@/lib/activity/trackClient";
 import {
-	synergyMatchResponseSchema,
 	type SynergyMatchResponse,
+	synergyMatchResponseSchema,
 } from "@/schemas/synergy";
 
 const STEPS = ["Goals", "Skills & roles", "Travel", "Matches"] as const;
@@ -370,7 +370,7 @@ export function SynergyProfilerApp() {
 	return (
 		<div className="flex h-full min-h-0 flex-col bg-[#11141d] text-slate-100">
 			<div className="border-b border-white/10 px-5 py-5 sm:px-7">
-				<div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-200">
+				<div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
 					<Sparkles size={14} /> DeScience Synergy Engine
 				</div>
 				<h2 className="mt-2 text-xl font-semibold">
