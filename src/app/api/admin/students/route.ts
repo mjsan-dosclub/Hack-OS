@@ -1,6 +1,7 @@
 import { desc, ilike, or, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import * as XLSX from "xlsx";
+import type { z } from "zod";
 import { getDatabase } from "@/db/client";
 import { clubMembers } from "@/db/schema";
 import {
@@ -9,6 +10,7 @@ import {
 } from "@/lib/auth/requireVerifiedMember";
 import {
 	studentMasterListSchema,
+	studentMasterManualInputSchema,
 	studentMasterRecordSchema,
 	studentMasterUploadResultSchema,
 	studentMembershipStatusSchema,
@@ -19,6 +21,7 @@ export const dynamic = "force-dynamic";
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const MAX_STUDENT_ROWS = 10_000;
+type StudentWriteRecord = z.infer<typeof studentMasterManualInputSchema>;
 const failure = (error: unknown) => {
 	if (error instanceof MemberAccessError) {
 		return NextResponse.json(
@@ -59,7 +62,7 @@ function requiredColumns(row: Record<string, unknown>): boolean {
 	].every(Boolean);
 }
 
-function readStudents(fileName: string, bytes: Buffer) {
+function readStudents(fileName: string, bytes: Buffer): StudentWriteRecord[] {
 	if (!/\.(xlsx|xls|csv)$/i.test(fileName)) {
 		throw new Error("Upload an Excel workbook or CSV file.");
 	}
@@ -185,33 +188,51 @@ export async function POST(request: Request) {
 				{ status: 413 },
 			);
 		}
-		const form = await request.formData();
-		const file = form.get("file");
-		if (!(file instanceof File)) {
-			return NextResponse.json(
-				{ error: "Choose a student roster workbook." },
-				{ status: 400 },
-			);
-		}
-		if (file.size === 0 || file.size > MAX_FILE_BYTES) {
-			return NextResponse.json(
-				{ error: "Upload a non-empty file no larger than 10 MB." },
-				{ status: 413 },
-			);
-		}
-		let records: ReturnType<typeof readStudents>;
-		try {
-			records = readStudents(file.name, Buffer.from(await file.arrayBuffer()));
-		} catch (error: unknown) {
-			return NextResponse.json(
-				{
-					error:
-						error instanceof Error
-							? error.message
-							: "The roster file is invalid.",
-				},
-				{ status: 400 },
-			);
+		let records: StudentWriteRecord[];
+		if (request.headers.get("content-type")?.includes("application/json")) {
+			const payload: unknown = await request.json();
+			const parsed = studentMasterManualInputSchema.safeParse(payload);
+			if (!parsed.success) {
+				return NextResponse.json(
+					{
+						error:
+							parsed.error.issues[0]?.message ?? "Student details are invalid.",
+					},
+					{ status: 400 },
+				);
+			}
+			records = [parsed.data];
+		} else {
+			const form = await request.formData();
+			const file = form.get("file");
+			if (!(file instanceof File)) {
+				return NextResponse.json(
+					{ error: "Choose a student roster workbook." },
+					{ status: 400 },
+				);
+			}
+			if (file.size === 0 || file.size > MAX_FILE_BYTES) {
+				return NextResponse.json(
+					{ error: "Upload a non-empty file no larger than 10 MB." },
+					{ status: 413 },
+				);
+			}
+			try {
+				records = readStudents(
+					file.name,
+					Buffer.from(await file.arrayBuffer()),
+				);
+			} catch (error: unknown) {
+				return NextResponse.json(
+					{
+						error:
+							error instanceof Error
+								? error.message
+								: "The roster file is invalid.",
+					},
+					{ status: 400 },
+				);
+			}
 		}
 		const db = getDatabase();
 		const savedIds = await db.transaction(async (tx) => {

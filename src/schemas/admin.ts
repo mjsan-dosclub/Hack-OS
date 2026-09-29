@@ -116,6 +116,12 @@ export const studentMembershipStatusSchema = z.enum([
 	"guest",
 ]);
 
+export const studentMasterManualInputSchema = studentMasterRecordSchema
+	.extend({
+		membershipStatus: studentMembershipStatusSchema.default("current"),
+	})
+	.strict();
+
 export const studentMasterAdminRecordSchema = studentMasterRecordSchema.extend({
 	batchYear: z.string().nullable(),
 	department: z.string().nullable(),

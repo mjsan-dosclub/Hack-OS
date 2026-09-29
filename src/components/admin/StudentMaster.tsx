@@ -1,7 +1,20 @@
 "use client";
 
-import { Search, ShieldCheck, UploadCloud, UsersRound } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+	Plus,
+	Search,
+	ShieldCheck,
+	UploadCloud,
+	UsersRound,
+} from "lucide-react";
+import {
+	type FormEvent,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import type { z } from "zod";
 import { AdminNavigation } from "@/components/admin/AdminNavigation";
 import { AdminSkeleton } from "@/components/admin/AdminSkeleton";
@@ -9,9 +22,43 @@ import {
 	type studentMasterAdminRecordSchema,
 	studentMasterListSchema,
 	studentMasterUploadResultSchema,
+	studentMembershipStatusSchema,
 } from "@/schemas/admin";
 
 type Student = z.infer<typeof studentMasterAdminRecordSchema>;
+type ManualStudentDraft = {
+	fullName: string;
+	email: string;
+	batchYear: string;
+	collegeName: string;
+	department: string;
+	degree: string;
+	gender: string;
+	membershipStatus: "current" | "alumnus" | "mentor" | "guest";
+};
+
+const manualFields: Array<
+	[keyof Omit<ManualStudentDraft, "membershipStatus">, string, "text" | "email"]
+> = [
+	["fullName", "Full name", "text"],
+	["email", "Email address", "email"],
+	["batchYear", "Batch year", "text"],
+	["collegeName", "College", "text"],
+	["department", "Department", "text"],
+	["degree", "Degree", "text"],
+	["gender", "Gender", "text"],
+];
+
+const emptyManualStudent: ManualStudentDraft = {
+	fullName: "",
+	email: "",
+	batchYear: "",
+	collegeName: "",
+	department: "",
+	degree: "",
+	gender: "",
+	membershipStatus: "current",
+};
 
 function relativeLogin(value: string | null, now: number): string {
 	if (!value) return "Never";
@@ -62,6 +109,10 @@ export function StudentMaster() {
 	const [search, setSearch] = useState("");
 	const [loading, setLoading] = useState(true);
 	const [uploading, setUploading] = useState(false);
+	const [savingManual, setSavingManual] = useState(false);
+	const [manualOpen, setManualOpen] = useState(false);
+	const [manualStudent, setManualStudent] =
+		useState<ManualStudentDraft>(emptyManualStudent);
 	const [error, setError] = useState("");
 	const [message, setMessage] = useState("");
 
@@ -150,6 +201,47 @@ export function StudentMaster() {
 		}
 	}
 
+	async function addStudent(event: FormEvent<HTMLFormElement>) {
+		event.preventDefault();
+		setSavingManual(true);
+		setError("");
+		setMessage("");
+		try {
+			const response = await fetch("/api/admin/students", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(manualStudent),
+			});
+			if (!response.ok) throw new Error(await responseError(response));
+			const parsed = studentMasterUploadResultSchema.safeParse(
+				await response.json(),
+			);
+			if (!parsed.success)
+				throw new Error("The student record response was invalid.");
+			setMessage(
+				`${parsed.data.students[0]?.fullName ?? "Student"} was added to the master roster.`,
+			);
+			setManualStudent(emptyManualStudent);
+			setManualOpen(false);
+			await refresh();
+		} catch (caught: unknown) {
+			setError(
+				caught instanceof Error
+					? caught.message
+					: "The student record could not be saved.",
+			);
+		} finally {
+			setSavingManual(false);
+		}
+	}
+
+	function updateManualStudent<K extends keyof ManualStudentDraft>(
+		key: K,
+		value: ManualStudentDraft[K],
+	) {
+		setManualStudent((current) => ({ ...current, [key]: value }));
+	}
+
 	return (
 		<main className="os-standalone-screen admin-dashboard min-h-dvh bg-[#0e1118] px-4 py-6 text-white sm:px-8 sm:py-10">
 			<AdminNavigation active="students" />
@@ -206,6 +298,14 @@ export function StudentMaster() {
 							</p>
 						</div>
 						<div className="flex flex-wrap items-center gap-2">
+							<button
+								type="button"
+								onClick={() => setManualOpen((open) => !open)}
+								aria-expanded={manualOpen}
+								className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/10 px-4 py-2 text-sm font-medium text-white/80 transition hover:border-cyan-200/30 hover:bg-white/5"
+							>
+								<Plus size={16} /> Add student
+							</button>
 							<a
 								href="/samples/student-master-template.csv"
 								download
@@ -234,6 +334,76 @@ export function StudentMaster() {
 							</button>
 						</div>
 					</div>
+					{manualOpen && (
+						<form
+							onSubmit={(event) => void addStudent(event)}
+							className="mt-5 rounded-xl border border-cyan-200/15 bg-black/10 p-4 sm:p-5"
+						>
+							<div className="mb-4">
+								<h3 className="font-semibold">Add a student manually</h3>
+								<p className="mt-1 text-xs text-white/45">
+									All seven master fields are required. The email address is the
+									member’s sign-in identity.
+								</p>
+							</div>
+							<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+								{manualFields.map(([key, label, type]) => (
+									<label
+										key={key}
+										className="grid gap-1.5 text-xs font-medium text-white/65"
+									>
+										{label}
+										<input
+											required
+											type={type}
+											value={manualStudent[key]}
+											onChange={(event) =>
+												updateManualStudent(key, event.target.value)
+											}
+											className="min-h-10 rounded-lg border border-white/10 bg-[#0e1118] px-3 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-cyan-200/45"
+										/>
+									</label>
+								))}
+								<label className="grid gap-1.5 text-xs font-medium text-white/65">
+									Membership status
+									<select
+										value={manualStudent.membershipStatus}
+										onChange={(event) => {
+											const status = studentMembershipStatusSchema.safeParse(
+												event.target.value,
+											);
+											if (status.success)
+												updateManualStudent("membershipStatus", status.data);
+										}}
+										className="min-h-10 rounded-lg border border-white/10 bg-[#0e1118] px-3 text-sm text-white outline-none focus:border-cyan-200/45"
+									>
+										<option value="current">Current member</option>
+										<option value="alumnus">Alumnus</option>
+										<option value="mentor">Mentor</option>
+										<option value="guest">Guest (no member access)</option>
+									</select>
+								</label>
+							</div>
+							<div className="mt-4 flex justify-end gap-2">
+								<button
+									type="button"
+									onClick={() => setManualOpen(false)}
+									disabled={savingManual}
+									className="min-h-10 rounded-lg border border-white/10 px-4 text-sm text-white/65 transition hover:bg-white/5 disabled:opacity-50"
+								>
+									Cancel
+								</button>
+								<button
+									type="submit"
+									disabled={savingManual}
+									aria-busy={savingManual}
+									className="min-h-10 rounded-lg bg-cyan-200 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-100 disabled:cursor-wait disabled:opacity-60"
+								>
+									{savingManual ? "Saving student…" : "Save student"}
+								</button>
+							</div>
+						</form>
+					)}
 					{error && (
 						<p
 							role="alert"
