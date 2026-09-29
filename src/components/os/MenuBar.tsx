@@ -8,6 +8,8 @@ import {
 	Command,
 	ExternalLink,
 	Globe2,
+	LogIn,
+	LogOut,
 	Palette,
 	RefreshCw,
 	Settings2,
@@ -16,13 +18,14 @@ import {
 	Wifi,
 	WifiOff,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
 	DesktopFontFamily,
 	DesktopFontSize,
 	DesktopTheme,
 } from "@/hooks/useDesktopAppearance";
 import { useWindowManager } from "@/stores/useWindowManager";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export type ClockMode = "12h" | "24h";
 
@@ -61,7 +64,11 @@ export function MenuBar({
 	const [clock, setClock] = useState("");
 	const [online, setOnline] = useState(true);
 	const [fps, setFps] = useState<number | null>(null);
+	const [memberEmail, setMemberEmail] = useState<string | null>(null);
+	const [authReady, setAuthReady] = useState(false);
+	const [signOutError, setSignOutError] = useState("");
 	const menuRef = useRef<HTMLDivElement>(null);
+	const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 	const activeTitle = useWindowManager(
 		(state) =>
 			state.windows.find((item) => item.id === state.activeWindowId)?.title ??
@@ -121,6 +128,26 @@ export function MenuBar({
 		};
 	}, [clockMode]);
 
+	useEffect(() => {
+		const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+			setMemberEmail(session?.user.email ?? null);
+			setAuthReady(true);
+			setSignOutError("");
+		});
+		return () => data.subscription.unsubscribe();
+	}, [supabase]);
+
+	async function signOut(): Promise<void> {
+		setSignOutError("");
+		const { error } = await supabase.auth.signOut();
+		if (error) {
+			setSignOutError("Sign out failed. Please try again.");
+			return;
+		}
+		setMenuOpen(false);
+		window.location.assign("/");
+	}
+
 	return (
 		<header className="absolute inset-x-0 top-0 z-[500] flex h-11 items-center justify-between border-b border-white/10 bg-[#12151d]/80 px-3 text-xs shadow-lg shadow-black/10 backdrop-blur-2xl sm:px-5">
 			<div className="flex min-w-0 items-center gap-3 sm:gap-5">
@@ -144,6 +171,52 @@ export function MenuBar({
 							<p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-white/35">
 								DeScience Open Source Club
 							</p>
+							<div className="mb-1 rounded-lg border border-white/[0.08] bg-white/[0.035] p-2">
+								{!authReady ? (
+									<p
+										className="px-2 py-1.5 text-xs text-white/45"
+										role="status"
+									>
+										Checking member access…
+									</p>
+								) : memberEmail ? (
+									<>
+										<p className="truncate px-2 py-1 text-[10px] text-white/45">
+											Signed in as
+										</p>
+										<p className="truncate px-2 pb-2 text-xs text-white/80">
+											{memberEmail}
+										</p>
+										<button
+											type="button"
+											role="menuitem"
+											onClick={() => void signOut()}
+											className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-white/75 transition hover:bg-white/10 hover:text-white"
+										>
+											<LogOut className="size-3.5" />
+											Sign out
+										</button>
+										{signOutError && (
+											<p
+												className="px-2 pt-1 text-[10px] text-rose-300"
+												role="alert"
+											>
+												{signOutError}
+											</p>
+										)}
+									</>
+								) : (
+									<a
+										href="/login"
+										role="menuitem"
+										onClick={() => setMenuOpen(false)}
+										className="flex items-center gap-2 rounded-lg px-2 py-2 text-xs text-white/75 transition hover:bg-white/10 hover:text-white"
+									>
+										<LogIn className="size-3.5" />
+										Member sign in
+									</a>
+								)}
+							</div>
 							<button
 								type="button"
 								role="menuitem"
