@@ -1,6 +1,5 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
 import {
 	Activity,
 	CalendarDays,
@@ -9,7 +8,9 @@ import {
 	ShieldCheck,
 	UsersRound,
 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { z } from "zod";
+import { AdminNavigation } from "@/components/admin/AdminNavigation";
 
 const summarySchema = z.object({
 	events: z.object({
@@ -84,6 +85,7 @@ export function AdminDashboard() {
 	return (
 		<main className="os-standalone-screen admin-dashboard min-h-dvh bg-[#0e1118] px-4 py-6 text-white sm:px-8 sm:py-10">
 			<div className="mx-auto max-w-7xl">
+				<AdminNavigation active="overview" />
 				<div className="flex flex-wrap items-start justify-between gap-4">
 					<div>
 						<p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[.2em] text-cyan-200">
@@ -107,30 +109,6 @@ export function AdminDashboard() {
 						Refresh
 					</button>
 				</div>
-				<nav
-					aria-label="Admin sections"
-					className="mt-6 flex flex-wrap gap-2 border-b border-white/10 pb-4"
-				>
-					<a
-						aria-current="page"
-						href="/admin"
-						className="rounded-lg bg-cyan-100 px-3 py-2 text-sm font-semibold text-slate-950"
-					>
-						Overview
-					</a>
-					<a
-						href="/admin/hackathons"
-						className="rounded-lg px-3 py-2 text-sm text-white/65 transition hover:bg-white/10 hover:text-white"
-					>
-						Hackathons
-					</a>
-					<a
-						href="/admin/library"
-						className="rounded-lg px-3 py-2 text-sm text-white/65 transition hover:bg-white/10 hover:text-white"
-					>
-						Member library
-					</a>
-				</nav>
 				{error && (
 					<p
 						role="alert"

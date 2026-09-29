@@ -12,6 +12,7 @@ import {
 	X,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { AdminNavigation } from "@/components/admin/AdminNavigation";
 import {
 	type ApprovedEvent,
 	approvedEventsListSchema,
@@ -312,8 +313,9 @@ export function HackathonModeration() {
 	}
 
 	return (
-		<main className="os-standalone-screen min-h-screen bg-[#101218] px-5 py-10 text-slate-100 sm:px-8">
-			<div className="mx-auto max-w-6xl">
+		<main className="os-standalone-screen admin-dashboard min-h-dvh bg-[#0e1118] px-4 py-6 text-white sm:px-8 sm:py-10">
+			<div className="mx-auto max-w-7xl">
+				<AdminNavigation active="hackathons" />
 				<header className="mb-8 flex flex-wrap items-start justify-between gap-4">
 					<div>
 						<p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">
@@ -335,12 +337,6 @@ export function HackathonModeration() {
 						>
 							<Plus size={16} /> Add hackathon manually
 						</button>
-						<a
-							href="/admin/library"
-							className="rounded-xl border border-white/10 px-4 py-2 text-sm"
-						>
-							Member library
-						</a>
 						<button
 							type="button"
 							onClick={() =>

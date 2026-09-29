@@ -13,6 +13,7 @@ import {
 	UploadCloud,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AdminNavigation } from "@/components/admin/AdminNavigation";
 import {
 	type MemberLibraryFile,
 	memberLibraryListSchema,
@@ -166,8 +167,9 @@ export function MemberLibrary() {
 	};
 
 	return (
-		<main className="os-standalone-screen min-h-screen bg-[#101218] px-5 py-10 text-slate-100 sm:px-8">
-			<div className="mx-auto max-w-5xl">
+		<main className="os-standalone-screen admin-dashboard min-h-dvh bg-[#0e1118] px-4 py-6 text-white sm:px-8 sm:py-10">
+			<div className="mx-auto max-w-7xl">
+				<AdminNavigation active="library" />
 				<header className="mb-8 flex flex-wrap items-start justify-between gap-4">
 					<div>
 						<p className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-emerald-300">
@@ -181,20 +183,6 @@ export function MemberLibrary() {
 							results, and assessment reports together. Uploaded spreadsheets
 							and text are searchable for authorized member suggestions.
 						</p>
-					</div>
-					<div className="flex flex-wrap gap-2">
-						<a
-							href="/admin/hackathons"
-							className="rounded-xl border border-emerald-300/30 px-4 py-2 text-sm text-emerald-200 transition hover:bg-emerald-300/10"
-						>
-							Review hackathons
-						</a>
-						<a
-							href="/"
-							className="rounded-xl border border-white/10 px-4 py-2 text-sm text-slate-300 transition hover:bg-white/5"
-						>
-							Back to Desktop
-						</a>
 					</div>
 				</header>
 
