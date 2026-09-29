@@ -132,7 +132,7 @@ export async function middleware(request: NextRequest) {
 	}
 	const access = accessResult.data;
 
-	if (needsAdmin && (!access.is_admin || !access.verified_member)) {
+	if (needsAdmin && !access.is_admin) {
 		return pathname.startsWith("/api/")
 			? NextResponse.json(
 					{ error: "Administrator access required." },

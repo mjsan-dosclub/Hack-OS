@@ -49,9 +49,35 @@ export async function requireVerifiedMember() {
 
 /** Admin route guard repeats the role check; middleware is not the only boundary. */
 export async function requireAdminMember() {
-	const member = await requireVerifiedMember();
-	if (!member.access.is_admin) {
+	const supabase = await createSupabaseServerClient();
+	const { data: userData, error: userError } = await supabase.auth.getUser();
+	if (userError || !userData.user) {
+		throw new MemberAccessError("Sign in to continue.", 401);
+	}
+	const { data: accessData, error: accessError } = await supabase.rpc(
+		"current_member_access",
+	);
+	const accessRow = Array.isArray(accessData) ? accessData[0] : accessData;
+	const accessResult = memberAccessSchema.safeParse(accessRow);
+	if (accessError || !accessResult.success) {
+		throw new MemberAccessError("Unable to verify administrator access.", 503);
+	}
+	if (!accessResult.data.is_admin) {
 		throw new MemberAccessError("Administrator access is required.", 403);
 	}
-	return member;
+	const { data: assurance, error: assuranceError } =
+		await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+	if (assuranceError) {
+		throw new MemberAccessError(
+			"Unable to verify two-step authentication.",
+			503,
+		);
+	}
+	if (assurance.currentLevel !== "aal2") {
+		throw new MemberAccessError(
+			"Complete authenticator verification to continue.",
+			403,
+		);
+	}
+	return { user: userData.user, access: accessResult.data };
 }
