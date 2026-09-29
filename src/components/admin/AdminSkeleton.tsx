@@ -1,4 +1,4 @@
-type SkeletonKind = "dashboard" | "table" | "review" | "library";
+type SkeletonKind = "dashboard" | "table" | "review" | "library" | "students";
 const metricSlots = [
 	"metric-a",
 	"metric-b",

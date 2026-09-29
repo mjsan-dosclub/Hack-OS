@@ -64,6 +64,16 @@ export const reviewEventSchema = reviewEventFieldsSchema
 export const manualEventSchema = reviewEventFieldsSchema.superRefine(
 	validateReviewInvariants,
 );
+export const bulkManualEventsSchema = z
+	.array(manualEventSchema)
+	.min(1)
+	.max(500);
+export const bulkManualEventsResultSchema = z
+	.object({
+		added: z.number().int().nonnegative(),
+		duplicatesSkipped: z.number().int().nonnegative(),
+	})
+	.strict();
 
 export const reviewActionSchema = z.discriminatedUnion("action", [
 	z

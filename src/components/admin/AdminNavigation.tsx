@@ -4,9 +4,10 @@ import {
 	CalendarDays,
 	LayoutDashboard,
 	ShieldCheck,
+	UsersRound,
 } from "lucide-react";
 
-type AdminSection = "overview" | "hackathons" | "library";
+type AdminSection = "overview" | "hackathons" | "students" | "library";
 
 const sections: Array<{
 	id: AdminSection;
@@ -30,9 +31,16 @@ const sections: Array<{
 		icon: CalendarDays,
 	},
 	{
+		id: "students",
+		label: "Students",
+		description: "Master roster & activity",
+		href: "/admin/students",
+		icon: UsersRound,
+	},
+	{
 		id: "library",
 		label: "Member library",
-		description: "Roster & knowledge files",
+		description: "Ollama knowledge files",
 		href: "/admin/library",
 		icon: BookOpen,
 	},

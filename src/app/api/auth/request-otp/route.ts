@@ -43,6 +43,13 @@ export async function POST(request: Request) {
 					where lower(email) = ${parsedRequest.data.email}
 						and verified_member = true
 						and membership_status in ('current', 'alumnus', 'mentor')
+						and length(trim(full_name)) > 0
+						and length(trim(college_name)) > 0
+						and length(trim(college_year)) > 0
+						and length(trim(department)) > 0
+						and length(trim(degree)) > 0
+						and gender is not null
+						and length(trim(gender)) > 0
 				)
 				or exists (
 					select 1
@@ -61,35 +68,40 @@ export async function POST(request: Request) {
 				{ status: 503, headers: { "Cache-Control": "no-store" } },
 			);
 		}
-
-		if (accessResult.data.eligible) {
-			const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-			const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-			if (!supabaseUrl || !supabaseAnonKey)
-				throw new Error("Supabase authentication is not configured.");
-
-			const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-				auth: {
-					autoRefreshToken: false,
-					detectSessionInUrl: false,
-					persistSession: false,
+		if (!accessResult.data.eligible) {
+			return NextResponse.json(
+				{
+					error:
+						"Only DeScience Open Source Club members can access this platform. If you are a member, contact an administrator to update the student master list.",
 				},
-			});
-			const { error } = await supabase.auth.signInWithOtp({
-				email: parsedRequest.data.email,
-				options: { shouldCreateUser: true },
-			});
-			if (error) {
-				console.error("[auth] Approved-account OTP delivery failed.");
-				return NextResponse.json(acceptedResponse, {
-					status: 202,
-					headers: { "Cache-Control": "no-store" },
-				});
-			}
+				{ status: 403, headers: { "Cache-Control": "no-store" } },
+			);
 		}
 
-		// Return the same response for approved and unapproved addresses to avoid
-		// revealing private roster membership through the login form.
+		const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+		const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+		if (!supabaseUrl || !supabaseAnonKey)
+			throw new Error("Supabase authentication is not configured.");
+
+		const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+			auth: {
+				autoRefreshToken: false,
+				detectSessionInUrl: false,
+				persistSession: false,
+			},
+		});
+		const { error } = await supabase.auth.signInWithOtp({
+			email: parsedRequest.data.email,
+			options: { shouldCreateUser: true },
+		});
+		if (error) {
+			console.error("[auth] Approved-account OTP delivery failed.");
+			return NextResponse.json(acceptedResponse, {
+				status: 202,
+				headers: { "Cache-Control": "no-store" },
+			});
+		}
+
 		return NextResponse.json(acceptedResponse, {
 			status: 202,
 			headers: { "Cache-Control": "no-store" },

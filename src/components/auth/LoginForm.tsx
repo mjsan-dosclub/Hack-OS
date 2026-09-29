@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { type FormEvent, useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
+	emailOtpRequestErrorSchema,
 	emailOtpRequestResponseSchema,
 	emailOtpRequestSchema,
 	emailOtpVerifySchema,
@@ -53,7 +54,13 @@ export default function LoginPage() {
 		}
 		setBusy(false);
 		if (!response.ok) {
-			setError("Sign-in is temporarily unavailable. Try again shortly.");
+			const body: unknown = await response.json().catch(() => null);
+			const parsedError = emailOtpRequestErrorSchema.safeParse(body);
+			setError(
+				parsedError.success
+					? parsedError.data.error
+					: "Sign-in is temporarily unavailable. Try again shortly.",
+			);
 			return;
 		}
 		const responseBody: unknown = await response.json().catch(() => null);

@@ -1,10 +1,5 @@
 import { createHash } from "node:crypto";
 import * as XLSX from "xlsx";
-import {
-	memberLibraryRowSchema,
-	discPatternSchema,
-	type MemberLibraryRow,
-} from "@/schemas/admin";
 
 export const MEMBER_LIBRARY_MAX_BYTES = 10 * 1024 * 1024;
 const MAX_SHEETS = 12;
@@ -24,7 +19,6 @@ export interface ParsedLibraryFile {
 	contentType: string;
 	sha256: string;
 	chunks: ExtractedLibraryChunk[];
-	memberRows: MemberLibraryRow[];
 }
 
 export class MemberLibraryFileError extends Error {
@@ -155,38 +149,6 @@ function fieldValue(
 	return null;
 }
 
-function listValue(value: string | null): string[] {
-	return value
-		? [
-				...new Set(
-					value
-						.split(/[,;|\n]+/)
-						.map((part) => part.trim())
-						.filter(Boolean),
-				),
-			].slice(0, 40)
-		: [];
-}
-
-function validUrl(value: string | null): string | null {
-	if (!value) return null;
-	try {
-		const url = new URL(value.startsWith("www.") ? `https://${value}` : value);
-		return url.protocol === "https:" ? url.toString() : null;
-	} catch {
-		return null;
-	}
-}
-
-function booleanValue(value: string | null): boolean | null {
-	if (!value) return null;
-	const normalized = value.toLowerCase();
-	if (["yes", "true", "1", "y", "open to travel"].includes(normalized))
-		return true;
-	if (["no", "false", "0", "n", "not open"].includes(normalized)) return false;
-	return null;
-}
-
 function consentValue(value: string | null): boolean {
 	return (
 		value !== null &&
@@ -194,206 +156,6 @@ function consentValue(value: string | null): boolean {
 			value.toLowerCase(),
 		)
 	);
-}
-
-function dateValue(value: string | null): string | null {
-	if (!value) return null;
-	const direct = /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
-	if (direct) return direct;
-	const dayFirst = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/.exec(value.trim());
-	if (dayFirst) {
-		const day = Number(dayFirst[1]);
-		const month = Number(dayFirst[2]);
-		const year = Number(dayFirst[3]);
-		const date = new Date(Date.UTC(year, month - 1, day));
-		return date.getUTCFullYear() === year &&
-			date.getUTCMonth() === month - 1 &&
-			date.getUTCDate() === day
-			? date.toISOString().slice(0, 10)
-			: null;
-	}
-	const parsed = new Date(value);
-	return Number.isNaN(parsed.getTime())
-		? null
-		: parsed.toISOString().slice(0, 10);
-}
-
-function parseMemberRow(row: Record<string, unknown>): MemberLibraryRow | null {
-	const email = parseEmail(
-		fieldValue(row, [
-			"email",
-			"email address",
-			"email id",
-			"student email",
-			"member email",
-			"mail",
-		]),
-	);
-	if (!email) return null;
-	const statusValue = fieldValue(row, [
-		"membership status",
-		"member status",
-		"status",
-	])
-		?.toLowerCase()
-		.replaceAll(" ", "-");
-	const membershipStatus =
-		statusValue === "current" ||
-		statusValue === "alumnus" ||
-		statusValue === "mentor" ||
-		statusValue === "guest"
-			? statusValue
-			: null;
-	const agileValue = fieldValue(row, [
-		"agile score",
-		"agile compatibility",
-		"agile",
-	]);
-	const cgpaValue = fieldValue(row, ["cgpa", "gpa", "grade point average"]);
-	const cgpaParts = cgpaValue?.match(
-		/^\s*([0-9]+(?:\.[0-9]+)?)(?:\s*\/\s*([0-9]+(?:\.[0-9]+)?))?\s*$/,
-	);
-	const cgpa = cgpaParts ? Number(cgpaParts[1]) : null;
-	const cgpaScaleValue = fieldValue(row, ["cgpa scale", "gpa scale", "scale"]);
-	const cgpaScale = cgpaScaleValue
-		? Number(cgpaScaleValue.replaceAll(",", ""))
-		: cgpaParts?.[2]
-			? Number(cgpaParts[2])
-			: null;
-	const agileScore =
-		agileValue === null ? null : Number(agileValue.replaceAll(",", ""));
-	const rawDiscProfile = fieldValue(row, [
-		"disc profile",
-		"disc pattern",
-		"disc",
-	])
-		?.toUpperCase()
-		.replace(/[^DISC]/g, "");
-	const discResult = rawDiscProfile
-		? discPatternSchema.safeParse(rawDiscProfile)
-		: null;
-	const discProfile = discResult?.success ? discResult.data : null;
-	const projectText = fieldValue(row, [
-		"recent projects",
-		"project history",
-		"projects",
-	]);
-	const projectLink = validUrl(
-		fieldValue(row, ["project link", "project url"]),
-	);
-	const projectStack = listValue(
-		fieldValue(row, ["project technologies", "project tech stack"]),
-	);
-	const recentProjects = projectText
-		? projectText
-				.split(/\s*[;|\n]+\s*/)
-				.map((title) => ({
-					title: title.slice(0, 180),
-					techStack: projectStack,
-					link: projectLink,
-				}))
-				.filter((project) => project.title.length > 0)
-				.slice(0, 20)
-		: [];
-	const candidate: unknown = {
-		email,
-		fullName: fieldValue(row, [
-			"full name",
-			"student name",
-			"member name",
-			"name",
-		]),
-		collegeName: fieldValue(row, [
-			"college",
-			"college name",
-			"university",
-			"institution",
-		]),
-		degree: fieldValue(row, [
-			"degree",
-			"degree name",
-			"college degree name",
-			"qualification",
-		]),
-		department: fieldValue(row, [
-			"department",
-			"department name",
-			"college department name",
-			"branch",
-			"major",
-		]),
-		gender: fieldValue(row, ["gender", "gender identity"]),
-		dateOfBirth: dateValue(
-			fieldValue(row, ["date of birth", "dob", "birth date"]),
-		),
-		cgpa: cgpa !== null && Number.isFinite(cgpa) ? cgpa : null,
-		cgpaScale:
-			cgpaScale !== null && Number.isFinite(cgpaScale) ? cgpaScale : null,
-		membershipStatus,
-		githubUrl: validUrl(
-			fieldValue(row, ["github", "github url", "github profile"]),
-		),
-		linkedinUrl: validUrl(
-			fieldValue(row, ["linkedin", "linkedin url", "linkedin profile"]),
-		),
-		portfolioUrl: validUrl(
-			fieldValue(row, ["portfolio", "portfolio url", "website"]),
-		),
-		primarySkills: listValue(
-			fieldValue(row, ["primary skills", "skills", "skill set", "skillset"]),
-		),
-		comfortableTech: listValue(
-			fieldValue(row, [
-				"comfortable tech",
-				"tech comfort",
-				"technology",
-				"tech stack",
-			]),
-		),
-		interests: listValue(
-			fieldValue(row, [
-				"interests",
-				"interest",
-				"domains",
-				"areas of interest",
-			]),
-		),
-		collegeYear: fieldValue(row, [
-			"college year",
-			"academic year",
-			"year of study",
-			"graduation year",
-			"batch",
-		]),
-		currentJobOrStudy: fieldValue(row, [
-			"current role",
-			"current job",
-			"job or study",
-			"position",
-			"occupation",
-		]),
-		locationCity: fieldValue(row, ["city", "location city", "current city"]),
-		canTravel: booleanValue(
-			fieldValue(row, ["can travel", "travel flexibility", "open to travel"]),
-		),
-		recentProjects,
-		discProfile,
-		agileScore:
-			agileScore !== null && Number.isFinite(agileScore) ? agileScore : null,
-		assessedAt: dateValue(
-			fieldValue(row, ["assessed at", "assessment date", "test date"]),
-		),
-		assessmentConsented: consentValue(
-			fieldValue(row, [
-				"assessment consent",
-				"consent",
-				"consented",
-				"permission to use assessment",
-			]),
-		),
-	};
-	const parsed = memberLibraryRowSchema.safeParse(candidate);
-	return parsed.success ? parsed.data : null;
 }
 
 function splitText(text: string): string[] {
@@ -444,7 +206,6 @@ function sanitizeIndexedText(
 
 function parseStructuredWorkbook(bytes: Buffer): {
 	chunks: ExtractedLibraryChunk[];
-	memberRows: MemberLibraryRow[];
 } {
 	let workbook: XLSX.WorkBook;
 	try {
@@ -468,7 +229,6 @@ function parseStructuredWorkbook(bytes: Buffer): {
 	}
 
 	const chunks: ExtractedLibraryChunk[] = [];
-	const memberRows: MemberLibraryRow[] = [];
 	let rowCount = 0;
 	let characterCount = 0;
 	for (const sheetName of workbook.SheetNames) {
@@ -485,22 +245,18 @@ function parseStructuredWorkbook(bytes: Buffer): {
 		for (let index = 0; index < rows.length; index += 1) {
 			const row = rows[index];
 			if (!row) continue;
-			const memberRow = parseMemberRow(row);
-			if (memberRow) memberRows.push(memberRow);
 			const assessmentDataPresent = Boolean(
 				fieldValue(row, ["disc profile", "disc pattern", "disc"]) ||
 					fieldValue(row, ["agile score", "agile compatibility", "agile"]),
 			);
-			const assessmentConsented =
-				memberRow?.assessmentConsented ??
-				consentValue(
-					fieldValue(row, [
-						"assessment consent",
-						"consent",
-						"consented",
-						"permission to use assessment",
-					]),
-				);
+			const assessmentConsented = consentValue(
+				fieldValue(row, [
+					"assessment consent",
+					"consent",
+					"consented",
+					"permission to use assessment",
+				]),
+			);
 			const fields = Object.entries(row)
 				.map(([key, value]) => [key.trim(), cleanCell(value)] as const)
 				.filter(
@@ -549,7 +305,7 @@ function parseStructuredWorkbook(bytes: Buffer): {
 			"The workbook has no non-empty rows to add to the library.",
 		);
 	}
-	return { chunks, memberRows };
+	return { chunks };
 }
 
 export function parseMemberLibraryFile(
@@ -563,11 +319,9 @@ export function parseMemberLibraryFile(
 	const sha256 = createHash("sha256").update(bytes).digest("hex");
 	const extension = filename.split(".").at(-1)?.toLowerCase();
 	let chunks: ExtractedLibraryChunk[];
-	let memberRows: MemberLibraryRow[] = [];
 	if (["xlsx", "xls", "csv"].includes(extension ?? "")) {
 		const parsed = parseStructuredWorkbook(bytes);
 		chunks = parsed.chunks;
-		memberRows = parsed.memberRows;
 	} else {
 		let text = bytes.toString("utf8");
 		if (extension === "json") {
@@ -609,5 +363,5 @@ export function parseMemberLibraryFile(
 			content: sanitizeIndexedText(content, assessmentConsented),
 		}));
 	}
-	return { contentType, sha256, chunks, memberRows };
+	return { contentType, sha256, chunks };
 }

@@ -88,14 +88,53 @@ export const memberLibraryUploadResultSchema = z
 	.object({
 		file: memberLibraryFileSchema,
 		duplicate: z.literal(false),
-		memberImport: z
-			.object({
-				newMembers: z.number().int().nonnegative(),
-				updatedMembers: z.number().int().nonnegative(),
-				assessmentsStored: z.number().int().nonnegative(),
-				unmatchedRows: z.number().int().nonnegative(),
-			})
-			.strict(),
+	})
+	.strict();
+
+export const studentMasterRecordSchema = z
+	.object({
+		id: z.string().uuid().optional(),
+		fullName: z.string().trim().min(1).max(160),
+		email: z
+			.string()
+			.trim()
+			.email()
+			.max(254)
+			.transform((email) => email.toLowerCase()),
+		batchYear: z.string().trim().min(1).max(40),
+		collegeName: z.string().trim().min(1).max(180),
+		department: z.string().trim().min(1).max(160),
+		degree: z.string().trim().min(1).max(120),
+		gender: z.string().trim().min(1).max(80),
+	})
+	.strict();
+
+export const studentMembershipStatusSchema = z.enum([
+	"current",
+	"alumnus",
+	"mentor",
+	"guest",
+]);
+
+export const studentMasterAdminRecordSchema = studentMasterRecordSchema.extend({
+	batchYear: z.string().nullable(),
+	department: z.string().nullable(),
+	degree: z.string().nullable(),
+	gender: z.string().nullable(),
+	collegeName: z.string().nullable(),
+	membershipStatus: studentMembershipStatusSchema,
+	verifiedMember: z.boolean(),
+	lastLoginAt: z.string().datetime().nullable(),
+});
+
+export const studentMasterListSchema = z
+	.object({ students: z.array(studentMasterAdminRecordSchema) })
+	.strict();
+
+export const studentMasterUploadResultSchema = z
+	.object({
+		processed: z.number().int().nonnegative(),
+		students: z.array(studentMasterRecordSchema),
 	})
 	.strict();
 

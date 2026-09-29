@@ -9,14 +9,16 @@ import {
 	RefreshCw,
 	Search,
 	ShieldCheck,
+	UploadCloud,
 	X,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AdminNavigation } from "@/components/admin/AdminNavigation";
 import { AdminSkeleton } from "@/components/admin/AdminSkeleton";
 import {
 	type ApprovedEvent,
 	approvedEventsListSchema,
+	bulkManualEventsResultSchema,
 	manualCreateResultSchema,
 	type ReviewEvent,
 	reviewActionSchema,
@@ -84,6 +86,7 @@ async function responseError(response: Response): Promise<string> {
 }
 
 export function HackathonModeration() {
+	const bulkFileRef = useRef<HTMLInputElement>(null);
 	const [events, setEvents] = useState<ReviewEvent[]>([]);
 	const [draft, setDraft] = useState<ReviewEvent | null>(null);
 	const [loading, setLoading] = useState(true);
@@ -95,6 +98,7 @@ export function HackathonModeration() {
 	const [message, setMessage] = useState("");
 	const [isCreating, setIsCreating] = useState(false);
 	const [bannerUploading, setBannerUploading] = useState(false);
+	const [bulkUploading, setBulkUploading] = useState(false);
 	const [activeTab, setActiveTab] = useState<"approved" | "review" | "create">(
 		"approved",
 	);
@@ -317,6 +321,40 @@ export function HackathonModeration() {
 		setMessage("");
 	}
 
+	async function uploadBulkEvents(file: File | undefined) {
+		if (!file) return;
+		setBulkUploading(true);
+		setError("");
+		setMessage("");
+		const form = new FormData();
+		form.set("file", file);
+		try {
+			const response = await fetch("/api/admin/hackathons/bulk", {
+				method: "POST",
+				body: form,
+			});
+			if (!response.ok) throw new Error(await responseError(response));
+			const parsed = bulkManualEventsResultSchema.safeParse(
+				await response.json(),
+			);
+			if (!parsed.success)
+				throw new Error("The event import response was invalid.");
+			setMessage(
+				`${parsed.data.added} event${parsed.data.added === 1 ? " was" : "s were"} added to review. ${parsed.data.duplicatesSkipped} duplicate${parsed.data.duplicatesSkipped === 1 ? " was" : "s were"} skipped. Nothing is published until an administrator verifies and approves it.`,
+			);
+			setIsCreating(false);
+			setActiveTab("review");
+			await refresh();
+		} catch (caught: unknown) {
+			setError(
+				caught instanceof Error ? caught.message : "The event upload failed.",
+			);
+		} finally {
+			setBulkUploading(false);
+			if (bulkFileRef.current) bulkFileRef.current.value = "";
+		}
+	}
+
 	return (
 		<main className="os-standalone-screen admin-dashboard min-h-dvh bg-[#0e1118] px-4 py-6 text-white sm:px-8 sm:py-10">
 			<AdminNavigation active="hackathons" />
@@ -335,6 +373,38 @@ export function HackathonModeration() {
 						</p>
 					</div>
 					<div className="flex flex-wrap gap-2">
+						<input
+							ref={bulkFileRef}
+							aria-label="Choose hackathon events workbook"
+							className="sr-only"
+							accept=".xlsx,.xls,.csv"
+							type="file"
+							disabled={bulkUploading}
+							onChange={(event) =>
+								void uploadBulkEvents(event.target.files?.[0])
+							}
+						/>
+						<a
+							href="/samples/hackathon-bulk-template.csv"
+							download
+							className="inline-flex items-center rounded-xl border border-white/10 px-3 py-2 text-sm text-white/65 transition hover:bg-white/5"
+						>
+							Template
+						</a>
+						<button
+							type="button"
+							disabled={bulkUploading}
+							aria-busy={bulkUploading}
+							onClick={() => bulkFileRef.current?.click()}
+							className="inline-flex items-center gap-2 rounded-xl border border-cyan-200/20 bg-cyan-200/10 px-3 py-2 text-sm text-cyan-100 transition hover:bg-cyan-200/15 disabled:cursor-wait disabled:opacity-60"
+						>
+							{bulkUploading ? (
+								<LoaderCircle className="animate-spin" size={16} />
+							) : (
+								<UploadCloud size={16} />
+							)}
+							{bulkUploading ? "Importing…" : "Bulk upload"}
+						</button>
 						<button
 							type="button"
 							onClick={beginManualEntry}

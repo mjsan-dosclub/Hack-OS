@@ -1,16 +1,16 @@
-import { generateObject } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
+import { generateObject } from "ai";
 import {
 	and,
 	desc,
 	eq,
+	gt,
 	gte,
 	inArray,
 	isNotNull,
 	isNull,
 	ne,
 	or,
-	gt,
 	sql,
 } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -18,27 +18,26 @@ import { z } from "zod";
 import { getDatabase } from "@/db/client";
 import {
 	clubMembers,
+	hackathons,
 	hackathonTagLinks,
 	hackathonTags,
-	hackathons,
-	memberAssessments,
 	memberLibraryChunks,
 	memberLibraryFiles,
+	type RecentProject,
 	studentHackathonRequests,
 	teamRecommendations,
-	type RecentProject,
 } from "@/db/schema";
 import {
 	MemberAccessError,
 	requireVerifiedMember,
 } from "@/lib/auth/requireVerifiedMember";
+import { jarvisLabsConfigSchema } from "@/schemas/ideator";
 import {
 	studentHackathonRequestInputSchema,
-	synergyMatchResponseSchema,
 	synergyAiSelectionSchema,
+	synergyMatchResponseSchema,
 	synergyProjectSchema,
 } from "@/schemas/synergy";
-import { jarvisLabsConfigSchema } from "@/schemas/ideator";
 
 const STOP_WORDS = new Set([
 	"about",
@@ -155,6 +154,7 @@ async function askJarvisToRankMembers(
 	teammates: Array<{ candidate: Candidate; relevance: string[] }>,
 	mentors: Array<{ candidate: Candidate; relevance: string[] }>,
 	evidenceByEmail: Map<string, string[]>,
+	assessmentByEmail: Map<string, string[]>,
 	signal: AbortSignal,
 ) {
 	const config = jarvisLabsConfigSchema.safeParse({
@@ -201,6 +201,11 @@ async function askJarvisToRankMembers(
 				title: project.title,
 				techStack: project.techStack,
 			})),
+			privateAssessmentSignals: (assessmentByEmail.get(candidate.email) ?? [])
+				.slice(0, 2)
+				.map((signal) =>
+					redactLibraryExcerpt(signal, [candidate.email, candidate.fullName]),
+				),
 			retrievedLibraryExcerpts: (evidenceByEmail.get(candidate.email) ?? [])
 				.slice(0, 2)
 				.map((excerpt) =>
@@ -215,6 +220,11 @@ async function askJarvisToRankMembers(
 				title: project.title,
 				techStack: project.techStack,
 			})),
+			privateAssessmentSignals: (assessmentByEmail.get(candidate.email) ?? [])
+				.slice(0, 2)
+				.map((signal) =>
+					redactLibraryExcerpt(signal, [candidate.email, candidate.fullName]),
+				),
 			retrievedLibraryExcerpts: (evidenceByEmail.get(candidate.email) ?? [])
 				.slice(0, 2)
 				.map((excerpt) =>
@@ -304,7 +314,11 @@ export async function POST(request: Request) {
 		const { user } = await requireVerifiedMember();
 		const db = getDatabase();
 		const [member] = await db
-			.select({ id: clubMembers.id, fullName: clubMembers.fullName })
+			.select({
+				id: clubMembers.id,
+				fullName: clubMembers.fullName,
+				email: clubMembers.email,
+			})
 			.from(clubMembers)
 			.where(
 				and(
@@ -540,7 +554,42 @@ export async function POST(request: Request) {
 					)
 					.limit(120)
 			: [];
+		const assessmentRows = input.allowAiMatching
+			? await db
+					.select({
+						memberEmail: memberLibraryChunks.memberEmail,
+						content: memberLibraryChunks.content,
+					})
+					.from(memberLibraryChunks)
+					.innerJoin(
+						memberLibraryFiles,
+						eq(memberLibraryFiles.id, memberLibraryChunks.fileId),
+					)
+					.innerJoin(
+						clubMembers,
+						sql`lower(${clubMembers.email}) = lower(${memberLibraryChunks.memberEmail})`,
+					)
+					.where(
+						and(
+							eq(memberLibraryFiles.aiEnabled, true),
+							isNotNull(clubMembers.aiMatchingConsentAt),
+							isNotNull(memberLibraryChunks.memberEmail),
+							sql`(${memberLibraryChunks.content} ilike '%disc profile:%' or ${memberLibraryChunks.content} ilike '%disc pattern:%' or ${memberLibraryChunks.content} ilike '%agile score:%' or ${memberLibraryChunks.content} ilike '%agile compatibility:%')`,
+						),
+					)
+					.orderBy(desc(memberLibraryFiles.createdAt))
+					.limit(500)
+			: [];
 		const evidenceByEmail = new Map<string, string[]>();
+		const assessmentByEmail = new Map<string, string[]>();
+		for (const row of assessmentRows) {
+			if (!row.memberEmail) continue;
+			const email = row.memberEmail.trim().toLowerCase();
+			assessmentByEmail.set(
+				email,
+				[...(assessmentByEmail.get(email) ?? []), row.content].slice(0, 3),
+			);
+		}
 		for (const row of libraryRows) {
 			if (!row.memberEmail) continue;
 			const email = row.memberEmail.trim().toLowerCase();
@@ -612,7 +661,10 @@ export async function POST(request: Request) {
 			.slice(0, 12);
 
 		let aiSelection: Awaited<ReturnType<typeof askJarvisToRankMembers>> = null;
-		if (input.allowAiMatching && libraryRows.length > 0) {
+		if (
+			input.allowAiMatching &&
+			(libraryRows.length > 0 || assessmentRows.length > 0)
+		) {
 			try {
 				aiSelection = await askJarvisToRankMembers(
 					input,
@@ -624,6 +676,7 @@ export async function POST(request: Request) {
 						({ candidate }) => candidate.aiMatchingConsentAt,
 					),
 					evidenceByEmail,
+					assessmentByEmail,
 					request.signal,
 				);
 			} catch (error: unknown) {
@@ -716,18 +769,19 @@ export async function POST(request: Request) {
 					}
 				: null,
 			assessment: {
-				available: Boolean(
-					await db
-						.select({ id: memberAssessments.id })
-						.from(memberAssessments)
-						.where(eq(memberAssessments.memberId, member.id))
-						.limit(1),
-				),
+				available:
+					(assessmentByEmail.get(member.email.toLowerCase())?.length ?? 0) > 0,
 				usedForMatching: Boolean(
 					aiSelection &&
-						[...evidenceByEmail.values()]
-							.flat()
-							.some((excerpt) => /\b(disc|agile)\b/i.test(excerpt)),
+						[
+							...aiSelection.teammates.map(({ candidate }) => candidate.email),
+							...(aiSelection.mentor
+								? [aiSelection.mentor.candidate.email]
+								: []),
+						].some(
+							(email) =>
+								(assessmentByEmail.get(email.toLowerCase())?.length ?? 0) > 0,
+						),
 				),
 				note: aiSelection
 					? "Ollama ranked a shortlist using your request and admin-enabled library excerpts. Direct names and contact details were kept outside the model prompt."

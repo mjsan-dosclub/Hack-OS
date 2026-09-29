@@ -2,21 +2,16 @@ import { createClient } from "@supabase/supabase-js";
 import { count, desc, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { getDatabase } from "@/db/client";
-import {
-	clubMembers,
-	memberAssessments,
-	memberLibraryChunks,
-	memberLibraryFiles,
-} from "@/db/schema";
-import {
-	MemberAccessError,
-	requireAdminMember,
-} from "@/lib/auth/requireVerifiedMember";
+import { memberLibraryChunks, memberLibraryFiles } from "@/db/schema";
 import {
 	MEMBER_LIBRARY_MAX_BYTES,
 	MemberLibraryFileError,
 	parseMemberLibraryFile,
 } from "@/lib/admin/memberLibrary";
+import {
+	MemberAccessError,
+	requireAdminMember,
+} from "@/lib/auth/requireVerifiedMember";
 import { getPublicSupabaseEnv } from "@/lib/supabase/env";
 import {
 	memberLibraryDeleteSchema,
@@ -52,178 +47,6 @@ function storageAdminClient() {
 	return createClient(NEXT_PUBLIC_SUPABASE_URL, serviceKey, {
 		auth: { autoRefreshToken: false, persistSession: false },
 	});
-}
-
-async function persistMemberRows(
-	db: ReturnType<typeof getDatabase>,
-	rows: ReturnType<typeof parseMemberLibraryFile>["memberRows"],
-	collegeLabel: string | null,
-) {
-	let newMembers = 0;
-	let updatedMembers = 0;
-	let assessmentsStored = 0;
-	let unmatchedRows = 0;
-	await db.transaction(async (tx) => {
-		for (const row of rows) {
-			const [existing] = await tx
-				.select({ id: clubMembers.id, collegeName: clubMembers.collegeName })
-				.from(clubMembers)
-				.where(eq(clubMembers.email, row.email))
-				.limit(1);
-			const collegeName =
-				row.collegeName ?? collegeLabel ?? existing?.collegeName ?? null;
-			let memberId = existing?.id;
-
-			if (row.fullName) {
-				if (!collegeName) {
-					throw new MemberLibraryFileError(
-						`Select the college for the roster row with ${row.email}, or include a college column in the file.`,
-					);
-				}
-				const values = {
-					fullName: row.fullName,
-					email: row.email,
-					collegeName,
-					membershipStatus: row.membershipStatus ?? "current",
-					verifiedMember: (row.membershipStatus ?? "current") !== "guest",
-					degree: row.degree,
-					department: row.department,
-					gender: row.gender,
-					dateOfBirth: row.dateOfBirth,
-					cgpa: row.cgpa?.toFixed(2) ?? null,
-					cgpaScale: row.cgpaScale?.toFixed(2) ?? null,
-					githubUrl: row.githubUrl,
-					linkedinUrl: row.linkedinUrl,
-					portfolioUrl: row.portfolioUrl,
-					primarySkills: row.primarySkills,
-					comfortableTech: row.comfortableTech,
-					interests: row.interests,
-					collegeYear: row.collegeYear,
-					currentJobOrStudy: row.currentJobOrStudy,
-					locationCity: row.locationCity,
-					canTravel: row.canTravel ?? false,
-					recentProjects: row.recentProjects,
-				};
-				const [saved] = await tx
-					.insert(clubMembers)
-					.values(values)
-					.onConflictDoUpdate({
-						target: clubMembers.email,
-						set: {
-							fullName: values.fullName,
-							collegeName: values.collegeName,
-							membershipStatus: values.membershipStatus,
-							verifiedMember: values.verifiedMember,
-							...(row.degree ? { degree: row.degree } : {}),
-							...(row.department ? { department: row.department } : {}),
-							...(row.gender ? { gender: row.gender } : {}),
-							...(row.dateOfBirth ? { dateOfBirth: row.dateOfBirth } : {}),
-							...(row.cgpa !== null ? { cgpa: row.cgpa.toFixed(2) } : {}),
-							...(row.cgpaScale !== null
-								? { cgpaScale: row.cgpaScale.toFixed(2) }
-								: {}),
-							...(row.githubUrl ? { githubUrl: row.githubUrl } : {}),
-							...(row.linkedinUrl ? { linkedinUrl: row.linkedinUrl } : {}),
-							...(row.portfolioUrl ? { portfolioUrl: row.portfolioUrl } : {}),
-							...(row.primarySkills.length > 0
-								? { primarySkills: row.primarySkills }
-								: {}),
-							...(row.comfortableTech.length > 0
-								? { comfortableTech: row.comfortableTech }
-								: {}),
-							...(row.interests.length > 0 ? { interests: row.interests } : {}),
-							...(row.collegeYear ? { collegeYear: row.collegeYear } : {}),
-							...(row.currentJobOrStudy
-								? { currentJobOrStudy: row.currentJobOrStudy }
-								: {}),
-							...(row.locationCity ? { locationCity: row.locationCity } : {}),
-							...(row.canTravel !== null ? { canTravel: row.canTravel } : {}),
-							...(row.recentProjects.length > 0
-								? { recentProjects: row.recentProjects }
-								: {}),
-						},
-					})
-					.returning({ id: clubMembers.id });
-				memberId = saved?.id;
-				if (existing) updatedMembers += 1;
-				else newMembers += 1;
-			} else if (existing) {
-				const updates = {
-					...(row.membershipStatus
-						? {
-								membershipStatus: row.membershipStatus,
-								verifiedMember: row.membershipStatus !== "guest",
-							}
-						: {}),
-					...(row.githubUrl ? { githubUrl: row.githubUrl } : {}),
-					...(row.linkedinUrl ? { linkedinUrl: row.linkedinUrl } : {}),
-					...(row.portfolioUrl ? { portfolioUrl: row.portfolioUrl } : {}),
-					...(row.degree ? { degree: row.degree } : {}),
-					...(row.department ? { department: row.department } : {}),
-					...(row.gender ? { gender: row.gender } : {}),
-					...(row.dateOfBirth ? { dateOfBirth: row.dateOfBirth } : {}),
-					...(row.cgpa !== null ? { cgpa: row.cgpa.toFixed(2) } : {}),
-					...(row.cgpaScale !== null
-						? { cgpaScale: row.cgpaScale.toFixed(2) }
-						: {}),
-					...(row.primarySkills.length > 0
-						? { primarySkills: row.primarySkills }
-						: {}),
-					...(row.comfortableTech.length > 0
-						? { comfortableTech: row.comfortableTech }
-						: {}),
-					...(row.interests.length > 0 ? { interests: row.interests } : {}),
-					...(row.collegeYear ? { collegeYear: row.collegeYear } : {}),
-					...(row.currentJobOrStudy
-						? { currentJobOrStudy: row.currentJobOrStudy }
-						: {}),
-					...(row.locationCity ? { locationCity: row.locationCity } : {}),
-					...(row.canTravel !== null ? { canTravel: row.canTravel } : {}),
-					...(row.recentProjects.length > 0
-						? { recentProjects: row.recentProjects }
-						: {}),
-				};
-				if (Object.keys(updates).length > 0) {
-					await tx
-						.update(clubMembers)
-						.set(updates)
-						.where(eq(clubMembers.id, existing.id));
-				}
-				updatedMembers += 1;
-			} else {
-				unmatchedRows += 1;
-			}
-
-			if (
-				memberId &&
-				row.assessmentConsented &&
-				row.discProfile &&
-				row.agileScore !== null
-			) {
-				const assessedAt =
-					row.assessedAt ?? new Date().toISOString().slice(0, 10);
-				await tx
-					.insert(memberAssessments)
-					.values({
-						memberId,
-						discProfile: row.discProfile,
-						agileScore: row.agileScore.toFixed(2),
-						assessedAt,
-						consentedAt: new Date(),
-					})
-					.onConflictDoUpdate({
-						target: [memberAssessments.memberId, memberAssessments.assessedAt],
-						set: {
-							discProfile: row.discProfile,
-							agileScore: row.agileScore.toFixed(2),
-							consentedAt: new Date(),
-						},
-					});
-				assessmentsStored += 1;
-			}
-		}
-	});
-	return { newMembers, updatedMembers, assessmentsStored, unmatchedRows };
 }
 
 function errorResponse(error: unknown) {
@@ -408,11 +231,6 @@ export async function POST(request: Request) {
 			await db
 				.insert(memberLibraryChunks)
 				.values(parsedFile.chunks.map((chunk) => ({ fileId: id, ...chunk })));
-			const memberImport = await persistMemberRows(
-				db,
-				parsedFile.memberRows,
-				options.data.collegeName,
-			);
 			const response = memberLibraryUploadResultSchema.safeParse({
 				file: {
 					...storedFile,
@@ -420,7 +238,6 @@ export async function POST(request: Request) {
 					chunkCount: parsedFile.chunks.length,
 				},
 				duplicate: false,
-				memberImport,
 			});
 			if (!response.success)
 				throw new Error("Stored library result is invalid.");

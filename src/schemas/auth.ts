@@ -18,6 +18,10 @@ export const emailOtpRequestResponseSchema = z
 	})
 	.strict();
 
+export const emailOtpRequestErrorSchema = z
+	.object({ error: z.string().min(1) })
+	.strict();
+
 export const emailOtpVerifySchema = z
 	.object({
 		email: memberEmailSchema,

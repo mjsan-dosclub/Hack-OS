@@ -93,10 +93,6 @@ export function MemberLibrary() {
 		setError(null);
 		setMessage(null);
 		let uploaded = 0;
-		let newMembers = 0;
-		let updatedMembers = 0;
-		let assessmentsStored = 0;
-		let unmatchedRows = 0;
 		for (const file of Array.from(selectedFiles)) {
 			if (file.size > MAX_FILE_BYTES) {
 				setError(`${file.name}: files must be 10 MB or smaller.`);
@@ -118,10 +114,6 @@ export function MemberLibrary() {
 				if (!parsed.success)
 					throw new Error("The upload response was invalid.");
 				uploaded += 1;
-				newMembers += parsed.data.memberImport.newMembers;
-				updatedMembers += parsed.data.memberImport.updatedMembers;
-				assessmentsStored += parsed.data.memberImport.assessmentsStored;
-				unmatchedRows += parsed.data.memberImport.unmatchedRows;
 			} catch (caught: unknown) {
 				setError(
 					`${file.name}: ${caught instanceof Error ? caught.message : "Upload failed."}`,
@@ -131,7 +123,7 @@ export function MemberLibrary() {
 		setUploading(false);
 		if (uploaded > 0) {
 			setMessage(
-				`${uploaded} ${uploaded === 1 ? "file was" : "files were"} stored. ${newMembers} new member${newMembers === 1 ? "" : "s"}, ${updatedMembers} profile update${updatedMembers === 1 ? "" : "s"}, ${assessmentsStored} consented assessment${assessmentsStored === 1 ? "" : "s"} indexed${unmatchedRows > 0 ? `; ${unmatchedRows} rows had no matching member` : ""}.`,
+				`${uploaded} ${uploaded === 1 ? "file was" : "files were"} stored and indexed for authorized Ollama retrieval. Student roster records are managed separately in Students.`,
 			);
 			await refresh();
 		}
@@ -197,9 +189,9 @@ export function MemberLibrary() {
 								Add files to the library
 							</h2>
 							<p className="mt-1 text-sm text-slate-400">
-								Upload files from any of the nine colleges. Each original stays
-								in private storage; spreadsheet rows and text are indexed for
-								search.
+								Store skill, DISC/agile, project, and performance reference
+								files for approved Ollama-assisted team suggestions. Originals
+								remain in private storage.
 							</p>
 						</div>
 					</div>
@@ -237,13 +229,11 @@ export function MemberLibrary() {
 						</div>
 					</div>
 					<p className="mt-4 rounded-xl border border-cyan-200/10 bg-cyan-200/[0.04] p-3 text-xs leading-5 text-slate-300">
-						To enable teammate matching, upload a follow-up spreadsheet with
-						columns <code>email</code>, <code>skills</code>,{" "}
-						<code>comfortable tech</code>, and <code>interests</code>. Use the
-						same email as the roster so these details update the existing
-						member. Separate multiple skills or interests with commas. Only
-						verified current members and alumni with relevant profile details
-						can be suggested.
+						This library does not create or update student master records.
+						Upload roster fields under Students. For member-specific reference
+						rows, include the member email so retrieved excerpts can be linked
+						to a roster record. Assessment content is indexed only when consent
+						is present and Ollama access is explicitly enabled.
 					</p>
 
 					<div className="mt-5 flex flex-wrap items-center gap-3">
