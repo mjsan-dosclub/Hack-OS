@@ -106,7 +106,12 @@ export async function GET() {
 				"Published event data did not satisfy the shared contract.",
 			);
 		return NextResponse.json(result.data, {
-			headers: { "Cache-Control": "public, max-age=0, must-revalidate" },
+			headers: {
+				"Cache-Control":
+					"public, max-age=0, s-maxage=300, stale-while-revalidate=3600",
+				"Vercel-CDN-Cache-Control":
+					"public, s-maxage=300, stale-while-revalidate=3600",
+			},
 		});
 	} catch {
 		console.error("[public-events] Unable to read verified events.");

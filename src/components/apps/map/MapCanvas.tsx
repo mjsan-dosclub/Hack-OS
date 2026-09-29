@@ -140,7 +140,7 @@ function ClusterMarker({
 	);
 }
 
-/** Client-only OSM map. Carto tiles keep the app free from proprietary map API keys. */
+/** Client-only OSM map. Tiles use the cacheable, identifiable same-origin proxy. */
 export function MapCanvas({
 	clusters,
 	focus,
@@ -160,7 +160,7 @@ export function MapCanvas({
 			<MapSizeObserver />
 			<TileLayer
 				attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-				url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+				url="/api/map-tiles/{z}/{x}/{y}"
 			/>
 			{userLocation && (
 				<>

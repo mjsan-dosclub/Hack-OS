@@ -6,6 +6,67 @@ import { getPublicSupabaseEnv } from "./lib/supabase/env";
 
 const MEMBER_PATHS = ["/members", "/apps/synergy", "/api/synergy"];
 const ADMIN_PATHS = ["/admin", "/api/admin"];
+const COPILOT_PATHS = ["/api/copilot/chat", "/api/copilot/evaluate"];
+
+/**
+ * Best-effort per-isolate token bucket. Serverless instances do not share memory;
+ * this reduces casual abuse but is not a replacement for a shared rate-limit store.
+ */
+const buckets = new Map<string, { tokens: number; updatedAt: number }>();
+const BUCKET_CAPACITY = 6;
+const REFILL_PER_SECOND = 0.1;
+const BUCKET_TTL_MS = 10 * 60 * 1000;
+const MAX_BUCKETS = 5000;
+
+function rateLimitResponse(request: NextRequest): NextResponse | null {
+	if (
+		!COPILOT_PATHS.includes(request.nextUrl.pathname) ||
+		request.method !== "POST"
+	)
+		return null;
+
+	const now = Date.now();
+	const forwarded = request.headers
+		.get("x-forwarded-for")
+		?.split(",")[0]
+		?.trim();
+	const address = request.headers.get("x-real-ip") ?? forwarded ?? "unknown";
+	const key = `${request.nextUrl.pathname}:${address}`;
+	for (const [bucketKey, bucket] of buckets) {
+		if (now - bucket.updatedAt > BUCKET_TTL_MS) buckets.delete(bucketKey);
+	}
+	if (!buckets.has(key) && buckets.size >= MAX_BUCKETS) {
+		const oldestKey = buckets.keys().next().value;
+		if (oldestKey) buckets.delete(oldestKey);
+	}
+	const bucket = buckets.get(key) ?? {
+		tokens: BUCKET_CAPACITY,
+		updatedAt: now,
+	};
+	const elapsedSeconds = Math.max(0, (now - bucket.updatedAt) / 1000);
+	bucket.tokens = Math.min(
+		BUCKET_CAPACITY,
+		bucket.tokens + elapsedSeconds * REFILL_PER_SECOND,
+	);
+	bucket.updatedAt = now;
+	if (bucket.tokens < 1) {
+		buckets.set(key, bucket);
+		const retryAfter = Math.ceil((1 - bucket.tokens) / REFILL_PER_SECOND);
+		return NextResponse.json(
+			{ error: "Too many AI requests. Please wait before trying again." },
+			{
+				status: 429,
+				headers: {
+					"Cache-Control": "no-store",
+					"Retry-After": String(retryAfter),
+				},
+			},
+		);
+	}
+	bucket.tokens -= 1;
+	buckets.set(key, bucket);
+	return null;
+}
 
 function matchesPath(pathname: string, roots: string[]): boolean {
 	return roots.some(
@@ -15,6 +76,8 @@ function matchesPath(pathname: string, roots: string[]): boolean {
 
 /** Refreshes auth cookies and enforces member verification plus Supabase AAL2. */
 export async function middleware(request: NextRequest) {
+	const limitResponse = rateLimitResponse(request);
+	if (limitResponse) return limitResponse;
 	let response = NextResponse.next({ request });
 	const { NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY } =
 		getPublicSupabaseEnv();
@@ -121,5 +184,7 @@ export const config = {
 		"/api/synergy/:path*",
 		"/admin/:path*",
 		"/api/admin/:path*",
+		"/api/copilot/chat",
+		"/api/copilot/evaluate",
 	],
 };
