@@ -1,31 +1,46 @@
 "use client";
 
-import { BookOpen, Bot, Map as MapIcon, Radar, Sparkles } from "lucide-react";
+import {
+	BookOpen,
+	Bot,
+	KeyRound,
+	Radar,
+	Sparkles,
+	UsersRound,
+} from "lucide-react";
 import { useWindowManager } from "@/stores/useWindowManager";
 
 const STEPS = [
 	{
 		number: "01",
-		icon: Radar,
-		title: "Find a hackathon",
-		text: "Open Radar to browse events, registration deadlines, formats, prize details, and official links. Confirm the final rules on the event website.",
+		icon: KeyRound,
+		title: "Know what is public and what is for members",
+		text: "Anyone can browse reviewed hackathons in Radar. To use team matching and the private club workspace, sign in with the DOS Club email already on the roster. Sign-in uses a one-time email code; first access also asks you to set up an authenticator.",
 	},
 	{
 		number: "02",
-		icon: MapIcon,
-		title: "Check where it is",
-		text: "Open Hackamaps to explore in-person events across India and see which opportunities are online. Use this view to decide whether travel may be needed.",
+		icon: Radar,
+		title: "Find an event and teammates",
+		text: "Radar shows published, admin-reviewed events, their deadlines, format, prize details, and official links. In DeScience Synergy Engine, share your interests, skills, preferred roles, location, and travel range to find suitable events and potential club teammates.",
 	},
 	{
 		number: "03",
+		icon: UsersRound,
+		title: "Make your profile useful",
+		text: "Be specific about what you want to learn, what you can contribute, technologies you are comfortable with, and whether you can travel. Matching can only use event and member information that has been added and approved for the workspace.",
+	},
+	{
+		number: "04",
 		icon: Bot,
-		title: "Make a build plan",
-		text: "Open the Co-Pilot, choose Sprint Planner, and tell it your team size, skills, and available hours. It can turn an idea into tasks and checkpoints.",
+		title: "Turn an event into a build plan",
+		text: "Open the AI Co-Pilot from an event in Radar, then choose Brainstorm Ideas, Architecture & Spec, Idea Evaluator, or Sprint Planner. Add your real team skills and available hours, review the response with your teammates, and copy the plan to share.",
 	},
 ];
 
+/** Quick guide explaining the public discovery surface and private club workflows. */
 export function StartHereApp() {
 	const openWindow = useWindowManager((state) => state.openWindow);
+
 	return (
 		<div className="h-full overflow-auto bg-[#11141c] p-5 text-white sm:p-7">
 			<div className="flex items-start gap-3">
@@ -33,16 +48,17 @@ export function StartHereApp() {
 					<BookOpen className="size-5" />
 				</div>
 				<div>
-					<p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-100">
-						HACK OS · QUICK START
+					<p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-100">
+						HACK OS · QUICK GUIDE
 					</p>
 					<h1 className="mt-1 text-xl font-semibold">
-						A launchpad for your next hackathon.
+						Your DeScience member workspace.
 					</h1>
-					<p className="mt-2 max-w-2xl text-xs leading-5 text-white/55">
-						Hack OS helps students discover hackathons in India or online, check
-						deadlines and locations, then shape a practical project plan with an
-						AI co-pilot.
+					<p className="mt-2 max-w-2xl text-sm leading-6 text-white/60">
+						Hack OS connects the club community to reviewed hackathons,
+						compatible teammates, and project-planning tools. The public
+						directory helps students discover events; member features use the
+						private DOS Club workspace.
 					</p>
 				</div>
 			</div>
@@ -50,9 +66,9 @@ export function StartHereApp() {
 			<section className="mt-6" aria-labelledby="quick-start-steps">
 				<h2
 					id="quick-start-steps"
-					className="text-xs font-semibold uppercase tracking-widest text-white/45"
+					className="text-xs font-semibold uppercase tracking-widest text-white/50"
 				>
-					Your first three steps
+					How to get started
 				</h2>
 				<div className="mt-3 grid gap-2">
 					{STEPS.map(({ number, icon: Icon, title, text }) => (
@@ -60,15 +76,13 @@ export function StartHereApp() {
 							key={number}
 							className="flex gap-3 rounded-xl border border-white/[0.08] bg-white/[0.025] p-3"
 						>
-							<span className="pt-0.5 font-mono text-[10px] text-cyan-100/55">
+							<span className="pt-0.5 font-mono text-xs text-cyan-100/60">
 								{number}
 							</span>
 							<Icon className="mt-0.5 size-4 shrink-0 text-cyan-100/80" />
 							<div>
-								<h3 className="text-xs font-semibold text-white/90">{title}</h3>
-								<p className="mt-1 text-[10px] leading-4 text-white/55">
-									{text}
-								</p>
+								<h3 className="text-sm font-semibold text-white/90">{title}</h3>
+								<p className="mt-1 text-xs leading-5 text-white/60">{text}</p>
 							</div>
 						</article>
 					))}
@@ -81,44 +95,65 @@ export function StartHereApp() {
 			>
 				<h2
 					id="quick-start-example"
-					className="flex items-center gap-2 text-xs font-semibold text-violet-100"
+					className="flex items-center gap-2 text-sm font-semibold text-violet-100"
 				>
-					<Sparkles className="size-3.5" />
-					Try this sample
+					<Sparkles className="size-4" />
+					Try this team-match request
 				</h2>
-				<p className="mt-2 text-[11px] leading-5 text-white/75">
-					“We’re three students with six hours to build. Help us plan a
-					beginner-friendly campus wayfinding app for an upcoming online or
-					India-based hackathon.”
+				<p className="mt-2 text-sm leading-6 text-white/80">
+					“We’re three DOS Club members interested in accessible education. One
+					of us knows frontend, one knows Python and data, and one enjoys design
+					and presenting. We have six hours to build and can attend online or
+					travel within India. Find a suitable event and suggest how we could
+					contribute as a team.”
 				</p>
-				<p className="mt-2 text-[10px] leading-4 text-white/45">
-					In Sprint Planner, add your actual skills and available hours. Review
-					the suggested tasks, adjust them with your team, and copy the plan to
-					share.
+				<p className="mt-2 text-xs leading-5 text-white/55">
+					Start in Synergy Engine with your own interests, roles, and travel
+					preferences. Open a matched event in Radar, then use the Co-Pilot to
+					brainstorm or create a sprint plan. Results depend on reviewed events
+					and member profiles available to the club.
 				</p>
 			</section>
 
 			<div className="mt-5 flex flex-wrap gap-2">
 				<button
 					type="button"
-					onClick={() => openWindow("radar")}
-					className="inline-flex h-9 items-center gap-2 rounded-lg bg-cyan-100 px-3 text-[10px] font-semibold text-[#09151a] transition hover:bg-cyan-50"
+					onClick={() => openWindow("synergy")}
+					className="inline-flex h-10 items-center gap-2 rounded-lg bg-cyan-100 px-3 text-xs font-semibold text-[#09151a] transition hover:bg-cyan-50"
 				>
-					<Radar className="size-3.5" />
-					Open Radar
+					<UsersRound className="size-4" />
+					Find teammates
+				</button>
+				<button
+					type="button"
+					onClick={() => openWindow("radar")}
+					className="inline-flex h-10 items-center gap-2 rounded-lg border border-white/10 px-3 text-xs text-white/75 transition hover:border-cyan-100/30 hover:text-white"
+				>
+					<Radar className="size-4" />
+					Browse events
 				</button>
 				<button
 					type="button"
 					onClick={() => openWindow("copilot")}
-					className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/10 px-3 text-[10px] text-white/75 transition hover:border-violet-100/25 hover:text-white"
+					className="inline-flex h-10 items-center gap-2 rounded-lg border border-white/10 px-3 text-xs text-white/75 transition hover:border-violet-100/25 hover:text-white"
 				>
-					<Bot className="size-3.5" />
+					<Bot className="size-4" />
 					Open Co-Pilot
 				</button>
-				<p className="basis-full pt-1 text-[9px] text-white/35">
+				<p className="basis-full pt-1 text-xs text-white/45">
 					Tip: press ⌘K on Mac or Ctrl+K to find any app or action.
 				</p>
 			</div>
+
+			<aside className="mt-5 rounded-xl border border-white/[0.08] bg-white/[0.025] p-3.5">
+				<h2 className="text-xs font-semibold text-white/80">For club admins</h2>
+				<p className="mt-1 text-xs leading-5 text-white/55">
+					Open Admin from your account menu to approve or update events,
+					maintain the student master roster, and manage source files in the
+					private Member Library. Only administrators can access these tools and
+					records.
+				</p>
+			</aside>
 		</div>
 	);
 }
