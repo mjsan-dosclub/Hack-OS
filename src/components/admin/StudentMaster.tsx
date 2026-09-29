@@ -13,12 +13,12 @@ import {
 	useCallback,
 	useEffect,
 	useMemo,
-	useRef,
 	useState,
 } from "react";
 import type { z } from "zod";
 import { AdminNavigation } from "@/components/admin/AdminNavigation";
 import { AdminSkeleton } from "@/components/admin/AdminSkeleton";
+import { SpreadsheetImportDialog } from "@/components/admin/SpreadsheetImportDialog";
 import {
 	type studentMasterAdminRecordSchema,
 	studentMasterListSchema,
@@ -152,12 +152,11 @@ async function responseError(response: Response): Promise<string> {
 }
 
 export function StudentMaster() {
-	const fileRef = useRef<HTMLInputElement>(null);
 	const [students, setStudents] = useState<Student[]>([]);
 	const [now, setNow] = useState<number | null>(null);
 	const [search, setSearch] = useState("");
 	const [loading, setLoading] = useState(true);
-	const [uploading, setUploading] = useState(false);
+	const [studentUploadOpen, setStudentUploadOpen] = useState(false);
 	const [savingManual, setSavingManual] = useState(false);
 	const [manualOpen, setManualOpen] = useState(false);
 	const [manualStudent, setManualStudent] =
@@ -223,16 +222,13 @@ export function StudentMaster() {
 		(student) => !student.lastLoginAt,
 	).length;
 
-	async function uploadRoster(file: File | undefined) {
-		if (!file) return;
-		setUploading(true);
+	async function importRoster(file: File): Promise<{ summary: string }> {
 		setError("");
 		setMessage("");
 		setImportIssues([]);
 		setLastImport(null);
 		const form = new FormData();
 		form.set("file", file);
-		try {
 			const response = await fetch("/api/admin/students", {
 				method: "POST",
 				body: form,
@@ -252,14 +248,9 @@ export function StudentMaster() {
 				"Import finished. Valid rows are saved; skipped rows can be corrected and re-uploaded.",
 			);
 			await refresh();
-		} catch (caught: unknown) {
-			setError(
-				caught instanceof Error ? caught.message : "The roster upload failed.",
-			);
-		} finally {
-			setUploading(false);
-			if (fileRef.current) fileRef.current.value = "";
-		}
+		return {
+			summary: `${parsed.data.processed} records imported or updated; ${parsed.data.issueCount} rows need correction.`,
+		};
 	}
 
 	async function addStudent(event: FormEvent<HTMLFormElement>) {
@@ -308,6 +299,7 @@ export function StudentMaster() {
 	}
 
 	return (
+		<>
 		<main className="os-standalone-screen admin-dashboard min-h-dvh bg-[#0e1118] px-4 py-6 text-white sm:px-8 sm:py-10">
 			<AdminNavigation active="students" />
 			<div className="mx-auto max-w-7xl lg:ml-[17rem]">
@@ -358,16 +350,7 @@ export function StudentMaster() {
 						<div>
 							<h2 className="font-semibold">Member roster</h2>
 							<p className="mt-1 text-xs text-white/45">
-								Required columns: name, email, batch year, college, department,
-								degree, gender.
-							</p>
-							<p className="mt-1 text-xs text-white/45">
-								Membership status (optional):{" "}
-								<span className="text-white/65">current</span>,{" "}
-								<span className="text-white/65">alumnus</span>,{" "}
-								<span className="text-white/65">mentor</span>, or{" "}
-								<span className="text-white/65">guest</span>. Blank defaults to
-								current; guests cannot sign in.
+									Manage member access and sign-in activity.
 							</p>
 						</div>
 						<div className="flex flex-wrap items-center gap-2">
@@ -379,31 +362,12 @@ export function StudentMaster() {
 							>
 								<Plus size={16} /> Add student
 							</button>
-							<a
-								href="/samples/student-master-template.csv"
-								download
-								className="rounded-xl border border-white/10 px-3 py-2 text-xs text-white/65 transition hover:bg-white/5"
-							>
-								Download template
-							</a>
-							<input
-								ref={fileRef}
-								type="file"
-								accept=".xlsx,.xls,.csv"
-								className="sr-only"
-								aria-label="Select student master workbook"
-								disabled={uploading}
-								onChange={(event) => void uploadRoster(event.target.files?.[0])}
-							/>
 							<button
 								type="button"
-								onClick={() => fileRef.current?.click()}
-								disabled={uploading}
-								aria-busy={uploading}
+									onClick={() => setStudentUploadOpen(true)}
 								className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-cyan-200 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-100 disabled:cursor-wait disabled:opacity-60"
 							>
-								<UploadCloud size={16} />{" "}
-								{uploading ? "Importing roster…" : "Bulk upload"}
+									<UploadCloud size={16} /> Bulk upload
 							</button>
 						</div>
 					</div>
@@ -415,8 +379,8 @@ export function StudentMaster() {
 							<div className="mb-4">
 								<h3 className="font-semibold">Add a student manually</h3>
 								<p className="mt-1 text-xs text-white/45">
-									All seven master fields are required. The email address is the
-									member’s sign-in identity.
+										All seven master fields are required. The email address is
+										the member’s sign-in identity.
 								</p>
 							</div>
 							<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -550,7 +514,9 @@ export function StudentMaster() {
 										key={issue.rowNumber}
 										className="rounded-lg bg-black/15 px-3 py-2"
 									>
-										<span className="font-semibold">Row {issue.rowNumber}</span>
+											<span className="font-semibold">
+												Row {issue.rowNumber}
+											</span>
 										<span className="ml-2">
 											{issue.values.name ||
 												issue.values.email ||
@@ -645,7 +611,9 @@ export function StudentMaster() {
 														dateTime={student.lastLoginAt ?? undefined}
 														title={
 															student.lastLoginAt
-																? new Date(student.lastLoginAt).toLocaleString()
+																	? new Date(
+																			student.lastLoginAt,
+																		).toLocaleString()
 																: undefined
 														}
 														className={`whitespace-nowrap text-xs ${student.lastLoginAt ? "text-white/65" : "text-white/35"}`}
@@ -677,5 +645,33 @@ export function StudentMaster() {
 				</section>
 			</div>
 		</main>
+			<SpreadsheetImportDialog
+				open={studentUploadOpen}
+				title="Import student roster"
+				description="Add or update DOS Club members from a spreadsheet."
+				templateHref="/samples/student-master-template.csv"
+				onClose={() => setStudentUploadOpen(false)}
+				onImportFile={importRoster}
+				instructions={
+					<>
+						<p>
+							<strong className="text-white/80">Required columns:</strong> name,
+							email, batch year, college, department, degree, gender.
+						</p>
+						<p>
+							<strong className="text-white/80">
+								Membership status (optional):
+							</strong>{" "}
+							current, alumnus, mentor, or guest. Blank defaults to current;
+							guests cannot sign in.
+						</p>
+						<p>
+							Existing emails are updated. Valid rows import even if other rows
+							have issues; you can download and correct only those rows.
+						</p>
+					</>
+				}
+			/>
+		</>
 	);
 }

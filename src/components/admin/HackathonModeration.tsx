@@ -13,10 +13,11 @@ import {
 	UploadCloud,
 	X,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { z } from "zod";
 import { AdminNavigation } from "@/components/admin/AdminNavigation";
 import { AdminSkeleton } from "@/components/admin/AdminSkeleton";
+import { SpreadsheetImportDialog } from "@/components/admin/SpreadsheetImportDialog";
 import {
 	type ApprovedEvent,
 	approvedEventsListSchema,
@@ -147,7 +148,6 @@ async function responseError(response: Response): Promise<string> {
 }
 
 export function HackathonModeration() {
-	const bulkFileRef = useRef<HTMLInputElement>(null);
 	const [events, setEvents] = useState<ReviewEvent[]>([]);
 	const [draft, setDraft] = useState<ReviewEvent | null>(null);
 	const [loading, setLoading] = useState(true);
@@ -160,7 +160,7 @@ export function HackathonModeration() {
 	const [message, setMessage] = useState("");
 	const [isCreating, setIsCreating] = useState(false);
 	const [bannerUploading, setBannerUploading] = useState(false);
-	const [bulkUploading, setBulkUploading] = useState(false);
+	const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
 	const [bulkIssues, setBulkIssues] = useState<BulkIssue[]>([]);
 	const [bulkSummary, setBulkSummary] = useState<{
 		added: number;
@@ -449,16 +449,13 @@ export function HackathonModeration() {
 		setMessage("");
 	}
 
-	async function uploadBulkEvents(file: File | undefined) {
-		if (!file) return;
-		setBulkUploading(true);
+	async function uploadBulkEvents(file: File): Promise<{ summary: string }> {
 		setError("");
 		setMessage("");
 		setBulkIssues([]);
 		setBulkSummary(null);
 		const form = new FormData();
 		form.set("file", file);
-		try {
 			const response = await fetch("/api/admin/hackathons/bulk", {
 				method: "POST",
 				body: form,
@@ -481,17 +478,13 @@ export function HackathonModeration() {
 			setIsCreating(false);
 			setActiveTab("review");
 			await refresh();
-		} catch (caught: unknown) {
-			setError(
-				caught instanceof Error ? caught.message : "The event upload failed.",
-			);
-		} finally {
-			setBulkUploading(false);
-			if (bulkFileRef.current) bulkFileRef.current.value = "";
-		}
+		return {
+			summary: `${parsed.data.added} added to review, ${parsed.data.duplicatesSkipped} duplicates skipped, ${parsed.data.issueCount} rows need correction.`,
+		};
 	}
 
 	return (
+		<>
 		<main className="os-standalone-screen admin-dashboard min-h-dvh bg-[#0e1118] px-4 py-6 text-white sm:px-8 sm:py-10">
 			<AdminNavigation active="hackathons" />
 			<div className="mx-auto max-w-7xl lg:ml-[17rem]">
@@ -504,42 +497,17 @@ export function HackathonModeration() {
 							Hackathon management
 						</h1>
 						<p className="mt-2 max-w-2xl text-sm text-slate-400">
-							Manage published events and review manually entered or web-scraped
-							submissions.
+								Manage published events and review manually entered or
+								web-scraped submissions.
 						</p>
 					</div>
 					<div className="flex flex-wrap gap-2">
-						<input
-							ref={bulkFileRef}
-							aria-label="Choose hackathon events workbook"
-							className="sr-only"
-							accept=".xlsx,.xls,.csv"
-							type="file"
-							disabled={bulkUploading}
-							onChange={(event) =>
-								void uploadBulkEvents(event.target.files?.[0])
-							}
-						/>
-						<a
-							href="/samples/hackathon-bulk-template.csv"
-							download
-							className="inline-flex items-center rounded-xl border border-white/10 px-3 py-2 text-sm text-white/65 transition hover:bg-white/5"
-						>
-							Template
-						</a>
 						<button
 							type="button"
-							disabled={bulkUploading}
-							aria-busy={bulkUploading}
-							onClick={() => bulkFileRef.current?.click()}
+								onClick={() => setBulkUploadOpen(true)}
 							className="inline-flex items-center gap-2 rounded-xl border border-cyan-200/20 bg-cyan-200/10 px-3 py-2 text-sm text-cyan-100 transition hover:bg-cyan-200/15 disabled:cursor-wait disabled:opacity-60"
 						>
-							{bulkUploading ? (
-								<LoaderCircle className="animate-spin" size={16} />
-							) : (
-								<UploadCloud size={16} />
-							)}
-							{bulkUploading ? "Importing…" : "Bulk upload"}
+								<UploadCloud size={16} /> Bulk upload
 						</button>
 						<button
 							type="button"
@@ -564,16 +532,6 @@ export function HackathonModeration() {
 							/>
 						</button>
 					</div>
-					<p className="mt-3 basis-full text-right text-xs text-slate-500">
-						Formats:{" "}
-						<span className="text-slate-300">online, in-person, hybrid</span>{" "}
-						(also accepts Online / Offline). Status:{" "}
-						<span className="text-slate-300">
-							upcoming, open, closed, ended
-						</span>
-						. Dates: ISO with timezone or day/month/year and time. The template
-						includes one clearly labeled sample row; remove it before importing.
-					</p>
 				</header>
 				{error && (
 					<div
@@ -629,7 +587,9 @@ export function HackathonModeration() {
 							<div
 								className={`rounded-xl border px-4 py-3 ${bulkSummary.issueCount ? "border-amber-300/20 bg-amber-300/[0.06]" : "border-white/10 bg-white/[0.025]"}`}
 							>
-								<p className="text-xs text-white/55">Rows needing correction</p>
+									<p className="text-xs text-white/55">
+										Rows needing correction
+									</p>
 								<p
 									className={`mt-1 text-2xl font-semibold tabular-nums ${bulkSummary.issueCount ? "text-amber-100" : "text-white/75"}`}
 								>
@@ -698,7 +658,9 @@ export function HackathonModeration() {
 						className={`border-b-2 px-4 py-3 text-sm font-semibold ${activeTab === "approved" ? "border-emerald-300 text-emerald-200" : "border-transparent text-slate-400 hover:text-white"}`}
 					>
 						Approved events{" "}
-						<span className="ml-1 text-xs text-slate-500">{approvedTotal}</span>
+							<span className="ml-1 text-xs text-slate-500">
+								{approvedTotal}
+							</span>
 					</button>
 					<button
 						type="button"
@@ -882,7 +844,9 @@ export function HackathonModeration() {
 									type="button"
 									disabled={approvedPage >= approvedPages}
 									onClick={() =>
-										setApprovedPage((page) => Math.min(approvedPages, page + 1))
+											setApprovedPage((page) =>
+												Math.min(approvedPages, page + 1),
+											)
 									}
 									className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-2 disabled:opacity-40"
 								>
@@ -899,8 +863,8 @@ export function HackathonModeration() {
 					events.length === 0 &&
 					!isCreating && (
 						<p className="rounded-2xl border border-white/10 p-8 text-sm text-slate-400">
-							No events are waiting for review. Add an event manually or run the
-							scraper to start the review queue.
+								No events are waiting for review. Add an event manually or run
+								the scraper to start the review queue.
 						</p>
 					)}
 				{(activeTab === "review" || activeTab === "create") && draft && (
@@ -942,7 +906,9 @@ export function HackathonModeration() {
 											? "Manual event · not yet saved"
 											: `Official source · ${draft.source}`}
 									</p>
-									<h2 className="mt-1 text-xl font-semibold">{draft.title}</h2>
+										<h2 className="mt-1 text-xl font-semibold">
+											{draft.title}
+										</h2>
 								</div>
 								{!isCreating && (
 									<a
@@ -976,8 +942,8 @@ export function HackathonModeration() {
 										</ul>
 									) : (
 										<p className="mt-2 text-slate-500">
-											No independent check recorded. Verify against the official
-											event page before approval.
+												No independent check recorded. Verify against the
+												official event page before approval.
 										</p>
 									)}
 								</div>
@@ -995,7 +961,9 @@ export function HackathonModeration() {
 										id="event-field-title"
 										required
 										value={draft.title}
-										onChange={(event) => setField("title", event.target.value)}
+											onChange={(event) =>
+												setField("title", event.target.value)
+											}
 										aria-invalid={Boolean(fieldErrors.title)}
 										aria-describedby={
 											fieldErrors.title ? "event-error-title" : undefined
@@ -1079,7 +1047,9 @@ export function HackathonModeration() {
 											{bannerUploading && (
 												<LoaderCircle className="animate-spin" size={14} />
 											)}
-											{bannerUploading ? "Uploading banner…" : "Upload banner"}
+												{bannerUploading
+													? "Uploading banner…"
+													: "Upload banner"}
 										</label>
 										<p className="mt-1 text-xs text-slate-500">
 											No custom image? Radar automatically shows a DeScience
@@ -1327,7 +1297,10 @@ export function HackathonModeration() {
 											min={0}
 											value={draft.totalPrizeValue}
 											onChange={(event) =>
-												setField("totalPrizeValue", Number(event.target.value))
+													setField(
+														"totalPrizeValue",
+														Number(event.target.value),
+													)
 											}
 											aria-invalid={Boolean(fieldErrors.totalPrizeValue)}
 											aria-describedby={
@@ -1376,7 +1349,9 @@ export function HackathonModeration() {
 												{busyAction === "save" && (
 													<LoaderCircle className="animate-spin" size={15} />
 												)}
-												{busyAction === "save" ? "Saving…" : "Save corrections"}
+													{busyAction === "save"
+														? "Saving…"
+														: "Save corrections"}
 											</button>
 											<button
 												disabled={busy}
@@ -1415,5 +1390,41 @@ export function HackathonModeration() {
 				)}
 			</div>
 		</main>
+			<SpreadsheetImportDialog
+				open={bulkUploadOpen}
+				title="Import hackathon events"
+				description="Add events to the review queue. They remain unpublished until verified."
+				templateHref="/samples/hackathon-bulk-template.csv"
+				onClose={() => setBulkUploadOpen(false)}
+				onImportFile={uploadBulkEvents}
+				instructions={
+					<>
+						<p>
+							<strong className="text-white/80">Required columns:</strong>{" "}
+							title, organizer, official_url, start_date, and end_date. Other
+							fields can be blank.
+						</p>
+						<p>
+							<strong className="text-white/80">Format:</strong> online,
+							in-person, or hybrid. Online / Offline are also accepted.
+						</p>
+						<p>
+							<strong className="text-white/80">Application status:</strong>{" "}
+							upcoming, open, closed, or ended. Blank defaults to upcoming.
+						</p>
+						<p>
+							<strong className="text-white/80">Dates:</strong> ISO with
+							timezone, or India-style day/month/year and time (for example,
+							12/11/2026, 05:30 AM).
+						</p>
+						<p>
+							The downloaded sample is illustrative. Replace or remove the
+							sample row before importing. Valid events are saved separately
+							from rows with issues.
+						</p>
+					</>
+				}
+			/>
+		</>
 	);
 }
