@@ -95,7 +95,7 @@ export async function GET(): Promise<Response> {
 						userId: memberActivityEvents.userId,
 						activity: memberActivityEvents.activity,
 						uses: count(),
-						lastUsedAt: sql<Date>`max(${memberActivityEvents.createdAt})`,
+						lastUsedAt: sql<string>`max(${memberActivityEvents.createdAt})`,
 						name: clubMembers.fullName,
 						email: clubMembers.email,
 					})
@@ -190,11 +190,13 @@ export async function GET(): Promise<Response> {
 							if (row.activity === "teammate_match")
 								item.teammateMatches = Number(row.uses);
 							else item.projectPlans = Number(row.uses);
+							const lastUsedAt = new Date(row.lastUsedAt);
 							if (
-								!item.lastUsedAt ||
-								row.lastUsedAt.getTime() > Date.parse(item.lastUsedAt)
+								Number.isFinite(lastUsedAt.getTime()) &&
+								(!item.lastUsedAt ||
+									lastUsedAt.getTime() > Date.parse(item.lastUsedAt))
 							)
-								item.lastUsedAt = row.lastUsedAt.toISOString();
+								item.lastUsedAt = lastUsedAt.toISOString();
 							return rows;
 						}, [])
 						.sort(

@@ -64,7 +64,10 @@ export function AdminDashboard() {
 	const refresh = useCallback(async () => {
 		setLoading(true);
 		try {
-			const response = await fetch("/api/admin/summary", { cache: "no-store" });
+			const response = await fetch("/api/admin/summary", {
+				cache: "no-store",
+				signal: AbortSignal.timeout(20_000),
+			});
 			const payload: unknown = await response.json();
 			if (!response.ok) throw new Error("Admin summary could not be loaded.");
 			const parsed = summarySchema.safeParse(payload);
@@ -72,8 +75,14 @@ export function AdminDashboard() {
 			setSummary(parsed.data);
 			setError("");
 		} catch (caught: unknown) {
+			const timedOut =
+				caught instanceof Error && caught.name === "TimeoutError";
 			setError(
-				caught instanceof Error ? caught.message : "Summary unavailable.",
+				timedOut
+					? "The dashboard request timed out. Check the connection and retry."
+					: caught instanceof Error
+						? caught.message
+						: "Summary unavailable.",
 			);
 		} finally {
 			setLoading(false);
