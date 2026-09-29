@@ -1,6 +1,7 @@
 "use client";
 
 import {
+	Download,
 	Plus,
 	Search,
 	ShieldCheck,
@@ -26,6 +27,9 @@ import {
 } from "@/schemas/admin";
 
 type Student = z.infer<typeof studentMasterAdminRecordSchema>;
+type ImportIssue = z.infer<
+	typeof studentMasterUploadResultSchema
+>["issues"][number];
 type ManualStudentDraft = {
 	fullName: string;
 	email: string;
@@ -89,6 +93,51 @@ function hasRequiredMasterFields(student: Student): boolean {
 	);
 }
 
+function downloadIssueRows(issues: ImportIssue[]) {
+	const headers = [
+		"name",
+		"email",
+		"batch_year",
+		"college",
+		"department",
+		"degree",
+		"gender",
+		"membership_status",
+		"import_issues",
+	];
+	const csvCell = (value: string): string => {
+		const safeValue = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+		return `"${safeValue.replaceAll('"', '""')}"`;
+	};
+	const lines = [
+		headers.map(csvCell).join(","),
+		...issues.map((issue) =>
+			[
+				issue.values.name,
+				issue.values.email,
+				issue.values.batch_year,
+				issue.values.college,
+				issue.values.department,
+				issue.values.degree,
+				issue.values.gender,
+				issue.values.membership_status,
+				`Row ${issue.rowNumber}: ${issue.messages.join("; ")}`,
+			]
+				.map(csvCell)
+				.join(","),
+		),
+	];
+	const blob = new Blob([`\uFEFF${lines.join("\r\n")}`], {
+		type: "text/csv;charset=utf-8",
+	});
+	const objectUrl = URL.createObjectURL(blob);
+	const link = document.createElement("a");
+	link.href = objectUrl;
+	link.download = "student-master-import-issues.csv";
+	link.click();
+	window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1_000);
+}
+
 async function responseError(response: Response): Promise<string> {
 	const body: unknown = await response.json().catch(() => null);
 	if (
@@ -115,6 +164,11 @@ export function StudentMaster() {
 		useState<ManualStudentDraft>(emptyManualStudent);
 	const [error, setError] = useState("");
 	const [message, setMessage] = useState("");
+	const [importIssues, setImportIssues] = useState<ImportIssue[]>([]);
+	const [lastImport, setLastImport] = useState<{
+		processed: number;
+		issueCount: number;
+	} | null>(null);
 
 	const refresh = useCallback(async () => {
 		setLoading(true);
@@ -174,6 +228,8 @@ export function StudentMaster() {
 		setUploading(true);
 		setError("");
 		setMessage("");
+		setImportIssues([]);
+		setLastImport(null);
 		const form = new FormData();
 		form.set("file", file);
 		try {
@@ -187,8 +243,13 @@ export function StudentMaster() {
 			);
 			if (!parsed.success)
 				throw new Error("The roster import response was invalid.");
+			setImportIssues(parsed.data.issues);
+			setLastImport({
+				processed: parsed.data.processed,
+				issueCount: parsed.data.issueCount,
+			});
 			setMessage(
-				`${parsed.data.processed} student records added or updated. These records can request a sign-in code once all required master fields are complete.`,
+				"Import finished. Valid rows are saved; skipped rows can be corrected and re-uploaded.",
 			);
 			await refresh();
 		} catch (caught: unknown) {
@@ -206,6 +267,8 @@ export function StudentMaster() {
 		setSavingManual(true);
 		setError("");
 		setMessage("");
+		setImportIssues([]);
+		setLastImport(null);
 		try {
 			const response = await fetch("/api/admin/students", {
 				method: "POST",
@@ -221,6 +284,8 @@ export function StudentMaster() {
 			setMessage(
 				`${parsed.data.students[0]?.fullName ?? "Student"} was added to the master roster.`,
 			);
+			setImportIssues([]);
+			setLastImport(null);
 			setManualStudent(emptyManualStudent);
 			setManualOpen(false);
 			await refresh();
@@ -419,6 +484,81 @@ export function StudentMaster() {
 						>
 							{message}
 						</p>
+					)}
+					{lastImport && (
+						<div
+							className="mt-4 grid gap-3 sm:grid-cols-2"
+							role="status"
+							aria-label="Import results"
+						>
+							<div className="rounded-xl border border-emerald-300/20 bg-emerald-300/[0.06] px-4 py-3">
+								<p className="text-xs font-medium text-emerald-100/65">
+									Imported or updated
+								</p>
+								<p className="mt-1 text-2xl font-semibold tabular-nums text-emerald-100">
+									{lastImport.processed}
+								</p>
+							</div>
+							<div
+								className={`rounded-xl border px-4 py-3 ${lastImport.issueCount ? "border-amber-300/20 bg-amber-300/[0.06]" : "border-white/10 bg-white/[0.025]"}`}
+							>
+								<p className="text-xs font-medium text-white/55">
+									Rows needing correction
+								</p>
+								<p
+									className={`mt-1 text-2xl font-semibold tabular-nums ${lastImport.issueCount ? "text-amber-100" : "text-white/75"}`}
+								>
+									{lastImport.issueCount}
+								</p>
+							</div>
+						</div>
+					)}
+					{importIssues.length > 0 && (
+						<section
+							aria-label="Rows needing correction"
+							className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-4"
+						>
+							<div className="flex flex-wrap items-center justify-between gap-3">
+								<div>
+									<h3 className="text-sm font-semibold text-amber-100">
+										{importIssues.length} rows need attention
+									</h3>
+									<p className="mt-1 text-xs text-amber-100/65">
+										Only these rows were skipped. Download them, correct the
+										listed issues, then upload that file.
+									</p>
+								</div>
+								<button
+									type="button"
+									onClick={() => downloadIssueRows(importIssues)}
+									className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-amber-100/20 px-3 py-2 text-xs font-semibold text-amber-50 transition hover:bg-amber-100/10"
+								>
+									<Download size={14} /> Download issue rows
+								</button>
+							</div>
+							<ul className="mt-3 max-h-48 space-y-2 overflow-y-auto text-xs text-amber-50/80">
+								{importIssues.map((issue) => (
+									<li
+										key={issue.rowNumber}
+										className="rounded-lg bg-black/15 px-3 py-2"
+									>
+										<span className="font-semibold">Row {issue.rowNumber}</span>
+										<span className="ml-2">
+											{issue.values.name ||
+												issue.values.email ||
+												"Unnamed record"}
+										</span>
+										<ul className="mt-1 list-inside list-disc text-amber-100/60">
+											{issue.messages.map((issueMessage) => (
+												<li key={`${issue.rowNumber}-${issueMessage}`}>
+													{issueMessage}
+												</li>
+											))}
+										</ul>
+									</li>
+								))}
+							</ul>
+						</section>
 					)}
 					<div className="relative mt-5 max-w-lg">
 						<Search

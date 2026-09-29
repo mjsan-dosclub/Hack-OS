@@ -140,7 +140,28 @@ export const studentMasterListSchema = z
 export const studentMasterUploadResultSchema = z
 	.object({
 		processed: z.number().int().nonnegative(),
+		issueCount: z.number().int().nonnegative(),
 		students: z.array(studentMasterRecordSchema),
+		issues: z.array(
+			z
+				.object({
+					rowNumber: z.number().int().positive(),
+					messages: z.array(z.string().min(1)),
+					values: z
+						.object({
+							name: z.string(),
+							email: z.string(),
+							batch_year: z.string(),
+							college: z.string(),
+							department: z.string(),
+							degree: z.string(),
+							gender: z.string(),
+							membership_status: z.string(),
+						})
+						.strict(),
+				})
+				.strict(),
+		),
 	})
 	.strict();
 
