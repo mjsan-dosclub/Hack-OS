@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
 import { and, count, desc, eq, sql } from "drizzle-orm";
+import { NextResponse } from "next/server";
 import { getDatabase } from "@/db/client";
 import {
 	clubMembers,
+	hackathons,
 	hackathonTagLinks,
 	hackathonTags,
-	hackathons,
 	memberActivityEvents,
 } from "@/db/schema";
 import {
@@ -230,6 +230,15 @@ export async function GET(): Promise<Response> {
 								"[database URL redacted]",
 							)
 							.slice(0, 400),
+						cause:
+							error.cause instanceof Error
+								? error.cause.message
+										.replace(
+											/postgres(?:ql)?:\/\/[^\s]+/gi,
+											"[database URL redacted]",
+										)
+										.slice(0, 400)
+								: undefined,
 					}
 				: { name: "UnknownError" };
 		console.error("[admin-summary] Summary query failed.", diagnostic);
