@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { recordFeatureUse } from "@/lib/activity/trackClient";
 import { AnimatePresence, motion } from "framer-motion";
 import {
 	ArrowLeft,
@@ -345,6 +346,7 @@ export function SynergyProfilerApp() {
 					"The match response did not match the expected data format.",
 				);
 			setResults(parsed.data);
+			recordFeatureUse("teammate_match");
 			setStep(3);
 		} catch (caught) {
 			setError(
@@ -668,6 +670,11 @@ export function SynergyProfilerApp() {
 										<p className="mt-1 text-sm text-slate-400">
 											We’ll compare your profile with verified, published events
 											and the club skill matrix.
+										</p>
+										<p className="mt-2 text-xs leading-5 text-slate-500">
+											Successful teammate searches are counted for club usage
+											analytics; your profile answers and match results are not
+											included in that log.
 										</p>
 										<div className="mt-5 grid gap-3 sm:grid-cols-2">
 											{[

@@ -74,6 +74,10 @@ export const memberLibraryProcessingStatusEnum = pgEnum(
 	"member_library_processing_status",
 	["ready", "failed"],
 );
+export const memberActivityTypeEnum = pgEnum("member_activity_type", [
+	"teammate_match",
+	"project_plan",
+]);
 
 const timestamps = {
 	createdAt: timestamp("created_at", { withTimezone: true })
@@ -591,6 +595,27 @@ export const teamRecommendations = pgTable(
 			"team_recommendations_reason_nonempty_ck",
 			sql`length(trim(${table.matchReasoning})) > 0`,
 		),
+	],
+);
+
+/** Minimal feature-use telemetry; never stores prompts, results, or profile data. */
+export const memberActivityEvents = pgTable(
+	"member_activity_events",
+	{
+		id: uuid("id").primaryKey().defaultRandom(),
+		userId: uuid("user_id").notNull(),
+		activity: memberActivityTypeEnum("activity").notNull(),
+		createdAt: timestamp("created_at", { withTimezone: true })
+			.notNull()
+			.defaultNow(),
+	},
+	(table) => [
+		index("member_activity_events_user_activity_created_idx").on(
+			table.userId,
+			table.activity,
+			table.createdAt,
+		),
+		index("member_activity_events_created_idx").on(table.createdAt),
 	],
 );
 

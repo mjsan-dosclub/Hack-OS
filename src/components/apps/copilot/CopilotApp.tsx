@@ -29,6 +29,7 @@ import {
 import { useWindowManager } from "@/stores/useWindowManager";
 import { SpecViewer } from "@/components/apps/copilot/SpecViewer";
 import { MarkdownContent } from "@/components/apps/copilot/MarkdownContent";
+import { recordFeatureUse } from "@/lib/activity/trackClient";
 
 const MODES: readonly { id: CopilotMode; label: string }[] = [
 	{ id: "brainstorm", label: "Brainstorm Ideas" },
@@ -286,6 +287,7 @@ export function CopilotApp() {
 					"The model returned an empty response. Try a more specific prompt.",
 				);
 			setLatestAssistant(fullText);
+			if (activeMode === "sprint") recordFeatureUse("project_plan");
 			setMessages((current) => [
 				...current,
 				{ id: crypto.randomUUID(), role: "assistant", content: fullText },

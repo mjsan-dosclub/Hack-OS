@@ -7,6 +7,7 @@ import { getPublicSupabaseEnv } from "./lib/supabase/env";
 const MEMBER_PATHS = ["/members", "/apps/synergy", "/api/synergy"];
 const ADMIN_PATHS = ["/admin", "/api/admin"];
 const COPILOT_PATHS = ["/api/copilot/chat", "/api/copilot/evaluate"];
+const RATE_LIMITED_API_PATHS = [...COPILOT_PATHS, "/api/activity/track"];
 
 /**
  * Best-effort per-isolate token bucket. Serverless instances do not share memory;
@@ -20,7 +21,7 @@ const MAX_BUCKETS = 5000;
 
 function rateLimitResponse(request: NextRequest): NextResponse | null {
 	if (
-		!COPILOT_PATHS.includes(request.nextUrl.pathname) ||
+		!RATE_LIMITED_API_PATHS.includes(request.nextUrl.pathname) ||
 		request.method !== "POST"
 	)
 		return null;

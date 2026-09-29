@@ -122,6 +122,7 @@ html[data-os-font="largest"] [class~="text-[20px]"] { font-size: calc(20px * var
 
 .desktop-root[data-theme="light"] nav[aria-label="Application Dock"] { border-color: rgba(255,255,255,.85); background: rgba(248,250,252,.82); box-shadow: 0 14px 42px rgba(15,23,42,.2); }
 .desktop-root[data-theme="light"] nav[aria-label="Application Dock"] button:not(:hover) { border-color: rgba(15,23,42,.12); background: linear-gradient(180deg,rgba(255,255,255,.95),rgba(226,232,240,.88)); color: #334155; }
+.desktop-root[data-theme="light"] nav[aria-label="Application Dock"] button:hover { border-color: rgba(14,116,144,.35); background: linear-gradient(180deg,#fff,rgba(207,250,254,.95)); color: #0e7490; }
 .desktop-root[data-theme="light"] nav[aria-label="Application Dock"] a { border-color: rgba(109,40,217,.15); background: rgba(139,92,246,.1); color: #6d28d9; }
 .desktop-root[data-theme="light"] nav[aria-label="Application Dock"] button span:not([role="status"]) { border-color: rgba(15,23,42,.12); background: #fff; color: #334155; }
 
@@ -144,6 +145,8 @@ html[data-os-theme="light"] .os-standalone-screen section[class*="bg-white/"] { 
 html[data-os-theme="light"] .os-standalone-screen [class*="bg-[#080d14]"],
 html[data-os-theme="light"] .os-standalone-screen [class*="bg-[#101218]"],
 html[data-os-theme="light"] .os-standalone-screen [class*="bg-[#181d25]"] { background-color: #eef3f7 !important; }
+html[data-os-theme="light"] .admin-dashboard [class*="bg-[#151a24]"] { background-color: rgba(255,255,255,.88) !important; }
+html[data-os-theme="light"] .admin-dashboard [class*="bg-slate-950"] { background-color: #cffafe !important; }
 html[data-os-theme="light"] .os-standalone-screen [class*="bg-black/"] { background-color: rgba(226,232,240,.68) !important; }
 html[data-os-theme="light"] .os-standalone-screen [class*="bg-white/"] { background-color: rgba(15,23,42,.035) !important; }
 html[data-os-theme="light"] .os-standalone-screen [class*="text-slate-100"],

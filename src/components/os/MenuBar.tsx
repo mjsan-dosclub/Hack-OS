@@ -26,6 +26,7 @@ import type {
 } from "@/hooks/useDesktopAppearance";
 import { useWindowManager } from "@/stores/useWindowManager";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { memberAccessSchema } from "@/schemas/auth";
 
 export type ClockMode = "12h" | "24h";
 
@@ -65,6 +66,7 @@ export function MenuBar({
 	const [online, setOnline] = useState(true);
 	const [fps, setFps] = useState<number | null>(null);
 	const [memberEmail, setMemberEmail] = useState<string | null>(null);
+	const [isAdmin, setIsAdmin] = useState(false);
 	const [authReady, setAuthReady] = useState(false);
 	const [signOutError, setSignOutError] = useState("");
 	const menuRef = useRef<HTMLDivElement>(null);
@@ -131,8 +133,18 @@ export function MenuBar({
 	useEffect(() => {
 		const { data } = supabase.auth.onAuthStateChange((_event, session) => {
 			setMemberEmail(session?.user.email ?? null);
+			setIsAdmin(false);
 			setAuthReady(true);
 			setSignOutError("");
+			if (session) {
+				void supabase
+					.rpc("current_member_access")
+					.then(({ data: accessData }) => {
+						const row = Array.isArray(accessData) ? accessData[0] : accessData;
+						const access = memberAccessSchema.safeParse(row);
+						setIsAdmin(access.success && access.data.is_admin);
+					});
+			}
 		});
 		return () => data.subscription.unsubscribe();
 	}, [supabase]);
@@ -187,6 +199,17 @@ export function MenuBar({
 										<p className="truncate px-2 pb-2 text-xs text-white/80">
 											{memberEmail}
 										</p>
+										{isAdmin && (
+											<a
+												href="/admin"
+												role="menuitem"
+												onClick={() => setMenuOpen(false)}
+												className="mb-1 flex items-center gap-2 rounded-lg bg-cyan-100/10 px-2 py-2 text-xs font-medium text-cyan-100 transition hover:bg-cyan-100/15"
+											>
+												<Settings2 className="size-3.5" />
+												Admin area
+											</a>
+										)}
 										<button
 											type="button"
 											role="menuitem"
@@ -213,7 +236,7 @@ export function MenuBar({
 										className="flex items-center gap-2 rounded-lg px-2 py-2 text-xs text-white/75 transition hover:bg-white/10 hover:text-white"
 									>
 										<LogIn className="size-3.5" />
-										Member sign in
+										Member / admin sign in
 									</a>
 								)}
 							</div>

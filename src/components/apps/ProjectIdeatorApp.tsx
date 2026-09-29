@@ -10,6 +10,7 @@ import {
 } from "@/schemas/ideator";
 import { useWindowManager } from "@/stores/useWindowManager";
 import { MarkdownContent } from "@/components/apps/copilot/MarkdownContent";
+import { recordFeatureUse } from "@/lib/activity/trackClient";
 
 const FOCUS_OPTIONS = [
 	{ value: "open-source", label: "Open Source" },
@@ -69,6 +70,7 @@ export function ProjectIdeatorApp() {
 				);
 			setIdea(result.data.idea);
 			setProvider(result.data.provider);
+			recordFeatureUse("project_plan");
 		} catch (requestError) {
 			setError(
 				requestError instanceof Error
@@ -246,7 +248,9 @@ export function ProjectIdeatorApp() {
 			)}
 			<p className="mt-5 text-[10px] leading-4 text-white/30">
 				Each request generates a fresh idea with the development Ollama model
-				hosted by JarvisLabs. Don’t include secrets or personal data.
+				hosted by JarvisLabs. Don’t include secrets or personal data. Successful
+				project-planning uses are counted for club analytics; prompts and
+				results are not included in that log.
 			</p>
 		</div>
 	);
