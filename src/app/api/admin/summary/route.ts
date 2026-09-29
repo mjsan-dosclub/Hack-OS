@@ -214,7 +214,25 @@ export async function GET(): Promise<Response> {
 				{ error: error.message },
 				{ status: error.status },
 			);
-		console.error("[admin-summary] Summary query failed.");
+		const diagnostic =
+			error instanceof Error
+				? {
+						name: error.name,
+						code:
+							typeof error === "object" &&
+							"code" in error &&
+							typeof error.code === "string"
+								? error.code
+								: undefined,
+						message: error.message
+							.replace(
+								/postgres(?:ql)?:\/\/[^\s]+/gi,
+								"[database URL redacted]",
+							)
+							.slice(0, 400),
+					}
+				: { name: "UnknownError" };
+		console.error("[admin-summary] Summary query failed.", diagnostic);
 		return NextResponse.json(
 			{ error: "Admin summary is temporarily unavailable." },
 			{ status: 500 },
