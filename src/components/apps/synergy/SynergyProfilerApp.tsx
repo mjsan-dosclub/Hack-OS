@@ -337,7 +337,9 @@ export function SynergyProfilerApp() {
 					typeof data.error === "string"
 						? data.error
 						: "Matching is currently unavailable.";
-				setNeedsLogin(response.status === 401 || response.status === 403);
+				// A 403 means the session exists but lacks member/MFA authorization;
+				// only a 401 should send the user back through email sign-in.
+				setNeedsLogin(response.status === 401);
 				throw new Error(apiError);
 			}
 			const parsed = synergyMatchResponseSchema.safeParse(data);

@@ -150,6 +150,26 @@ export async function POST(request: Request) {
 					headers: { "Cache-Control": "no-store" },
 				});
 			}
+			// Older Auth accounts may predate the roster-linking trigger. Link only
+			// the already-verified email's own roster row, and never steal a link.
+			const linkedMember = await getDatabase().execute(sql`
+				update public.club_members
+				set auth_user_id = ${authUserId}::uuid
+				where lower(email) = ${parsedRequest.data.email}
+					and verified_member = true
+					and membership_status in ('current', 'alumnus', 'mentor')
+					and (auth_user_id is null or auth_user_id = ${authUserId}::uuid)
+				returning id
+			`);
+			if (linkedMember.length === 0) {
+				console.error(
+					"[auth] Approved member roster link could not be confirmed.",
+				);
+				return NextResponse.json(acceptedResponse, {
+					status: 202,
+					headers: { "Cache-Control": "no-store" },
+				});
+			}
 
 			// The original auth.users trigger links the roster row. Create the
 			// matching public profile for first-time members without changing roles.
