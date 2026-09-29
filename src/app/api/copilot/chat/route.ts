@@ -1,13 +1,13 @@
-import { APICallError, streamText } from "ai";
-import type { LanguageModel } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
-import { copilotChatRequestSchema } from "@/schemas/copilot";
+import type { LanguageModel } from "ai";
+import { APICallError, streamText } from "ai";
 import {
 	COPILOT_SYSTEM_PROMPT,
 	MODE_PROMPTS,
 	summarizeHackathonContext,
 	summarizeTeam,
 } from "@/lib/copilot/prompts";
+import { copilotChatRequestSchema } from "@/schemas/copilot";
 import { jarvisLabsConfigSchema } from "@/schemas/ideator";
 
 export const runtime = "edge";
@@ -84,47 +84,6 @@ function providerFailureResponse(error: unknown): Response {
 	);
 }
 
-function textStreamResponse(
-	firstChunk: string,
-	iterator: AsyncIterator<string>,
-	provider: ProviderName,
-): Response {
-	const encoder = new TextEncoder();
-	let initialChunk: string | undefined = firstChunk;
-	const body = new ReadableStream<Uint8Array>({
-		async pull(controller) {
-			if (initialChunk !== undefined) {
-				controller.enqueue(encoder.encode(initialChunk));
-				initialChunk = undefined;
-				return;
-			}
-			try {
-				const next = await iterator.next();
-				if (next.done) {
-					controller.close();
-					return;
-				}
-				controller.enqueue(encoder.encode(next.value));
-			} catch (error: unknown) {
-				logProviderFailure(provider, error);
-				controller.error(error);
-			}
-		},
-		async cancel() {
-			await iterator.return?.();
-		},
-	});
-
-	return new Response(body, {
-		headers: {
-			"Cache-Control": "no-store",
-			"Content-Type": "text/plain; charset=utf-8",
-			"X-Content-Type-Options": "nosniff",
-			"X-AI-Provider": provider,
-		},
-	});
-}
-
 export async function POST(request: Request): Promise<Response> {
 	let input: unknown;
 	try {
@@ -173,14 +132,17 @@ export async function POST(request: Request): Promise<Response> {
 				maxOutputTokens: 3_500,
 				maxRetries: 0,
 				temperature: 0.5,
+				onError: ({ error }) => logProviderFailure(candidate.name, error),
 			});
-			const iterator = result.textStream[Symbol.asyncIterator]();
-			const first = await iterator.next();
-			if (first.done || !first.value.trim()) {
-				await iterator.return?.();
-				throw new Error("The provider returned an empty response stream.");
-			}
-			return textStreamResponse(first.value, iterator, candidate.name);
+			// Return the HTTP stream immediately. Waiting for the model's first token
+			// here can exceed Vercel Edge's response-start deadline and surface as 504.
+			return result.toTextStreamResponse({
+				headers: {
+					"Cache-Control": "no-store",
+					"X-Content-Type-Options": "nosniff",
+					"X-AI-Provider": candidate.name,
+				},
+			});
 		} catch (error: unknown) {
 			if (request.signal.aborted) return new Response(null, { status: 499 });
 			lastError = error;

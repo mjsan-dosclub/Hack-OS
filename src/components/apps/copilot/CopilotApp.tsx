@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
 	Bot,
 	Check,
@@ -12,24 +11,25 @@ import {
 	Target,
 	Users,
 } from "lucide-react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { MarkdownContent } from "@/components/apps/copilot/MarkdownContent";
+import { SpecViewer } from "@/components/apps/copilot/SpecViewer";
 import {
-	useCopilotContext,
 	TEAM_HOUR_OPTIONS,
 	TEAM_SKILL_OPTIONS,
+	useCopilotContext,
 } from "@/hooks/useCopilotContext";
+import { recordFeatureUse } from "@/lib/activity/trackClient";
 import { QUICK_PROMPTS } from "@/lib/copilot/prompts";
 import {
-	copilotChatRequestSchema,
-	ideaEvaluationRequestSchema,
-	ideaEvaluationSchema,
 	type CopilotMessage,
 	type CopilotMode,
+	copilotChatRequestSchema,
 	type IdeaEvaluation,
+	ideaEvaluationRequestSchema,
+	ideaEvaluationSchema,
 } from "@/schemas/copilot";
 import { useWindowManager } from "@/stores/useWindowManager";
-import { SpecViewer } from "@/components/apps/copilot/SpecViewer";
-import { MarkdownContent } from "@/components/apps/copilot/MarkdownContent";
-import { recordFeatureUse } from "@/lib/activity/trackClient";
 
 const MODES: readonly { id: CopilotMode; label: string }[] = [
 	{ id: "brainstorm", label: "Brainstorm Ideas" },
@@ -275,11 +275,20 @@ export function CopilotApp() {
 			const reader = response.body.getReader();
 			const decoder = new TextDecoder();
 			let fullText = "";
-			while (true) {
-				const chunk = await reader.read();
-				if (chunk.done) break;
-				fullText += decoder.decode(chunk.value, { stream: true });
-				setStreamingText(fullText);
+			try {
+				while (true) {
+					const chunk = await reader.read();
+					if (chunk.done) break;
+					fullText += decoder.decode(chunk.value, { stream: true });
+					setStreamingText(fullText);
+				}
+			} catch {
+				if (controller.signal.aborted) return;
+				throw new Error(
+					fullText
+						? "The Co-Pilot stream was interrupted. Retry to get a complete answer."
+						: "JarvisLabs did not start the Co-Pilot response. It may be waking up; please retry shortly.",
+				);
 			}
 			fullText += decoder.decode();
 			if (!fullText.trim())
