@@ -1,0 +1,56 @@
+name: Nightly hackathon sync
+
+on:
+  schedule:
+    - cron: "0 0 * * *" # Daily at midnight UTC.
+  workflow_dispatch:
+    inputs:
+      source:
+        description: Source to sync
+        type: choice
+        required: true
+        default: all
+        options:
+          - all
+          - devpost
+          - devfolio
+          - unstop
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      JARVISLABS_API_KEY: ${{ secrets.JARVISLABS_API_KEY }}
+      JARVISLABS_BASE_URL: ${{ secrets.JARVISLABS_BASE_URL }}
+      JARVISLABS_MODEL: ${{ secrets.JARVISLABS_MODEL }}
+      SYNC_SOURCE: ${{ inputs.source || 'all' }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.18.0
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Run scrapers and summarize
+        run: |
+          set -o pipefail
+          pnpm scrape --source="$SYNC_SOURCE" 2>&1 | tee scraper-output.log
+          {
+            echo "## Hackathon sync"
+            echo "Source selection: $SYNC_SOURCE"
+            echo '```text'
+            cat scraper-output.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

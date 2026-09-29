@@ -1,0 +1,16 @@
+{
+  "@context": "https://schema.org",
+  "@type": "Event",
+  "name": "Open Source for Good",
+  "url": "https://open-source-for-good.devfolio.co/",
+  "description": "A student build event supporting open source projects.",
+  "startDate": "2027-03-04T09:00:00+05:30",
+  "endDate": "2027-03-05T18:00:00+05:30",
+  "location": {
+    "@type": "Place",
+    "name": "Online"
+  },
+  "organizer": { "@type": "Organization", "name": "Devfolio Campus" },
+  "offers": { "@type": "Offer", "price": "INR 25,000", "validThrough": "2027-03-01T23:59:00+05:30" },
+  "image": ["https://cdn.devfolio.co/events/open-source-for-good.png", null, 42]
+}

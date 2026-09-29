@@ -1,0 +1,37 @@
+name: "Implement an MLH hackathon scraper"
+description: "Good first issue · backend and data ingestion"
+title: "feat: add a polite MLH hackathon source adapter"
+labels:
+  - "good first issue"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Goal
+        Add an MLH adapter for official student hackathon listings. Use public pages or a documented feed, respect site access rules, and keep the directory's online + India in-person scope.
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Implementation path
+      description: "Suggested steps for a student contributor"
+      value: |
+        1. Review `src/lib/scrapers/base.ts`, `src/lib/scrapers/devpost.ts`, and `src/lib/scrapers/types.ts`.
+        2. Confirm the official MLH listing URL and allowed retrieval method with a maintainer before coding. Do not use guessed private endpoints or bypass access controls.
+        3. Add `mlh` to the scraper source type and source allowlist; the canonical `HackathonSource` enum already includes it.
+        4. Implement `src/lib/scrapers/mlh.ts` as a `BaseScraper` adapter returning `RawHackathonData`, then register it in `src/lib/scrapers/syncEngine.ts` and the CLI/cron source selection.
+        5. Add saved HTML/JSON fixtures and tests for valid, missing-date, malformed, overseas in-person, and online events.
+        6. Verify every sanitized result with `scraperHackathonSchema`; missing facts should cause a record to be skipped rather than guessed.
+      placeholder: "Link the official MLH listing page and note any confirmed access constraints."
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      value: |
+        - [ ] The adapter uses the shared polite fetch path and stable source IDs.
+        - [ ] Only online events and physical events in India are retained.
+        - [ ] Missing dates and unsupported records are skipped safely.
+        - [ ] Fixture tests and typecheck pass; no real database write is needed for unit tests.
+    validations:
+      required: true

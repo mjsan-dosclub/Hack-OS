@@ -1,0 +1,36 @@
+name: "Add Google Calendar export to hackathon details"
+description: "Good first issue · frontend and event data"
+title: "feat: add calendar export to hackathon detail drawer"
+labels:
+  - "good first issue"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Goal
+        Let a student add a selected hackathon to Google Calendar from its detail drawer using the dates, title, official URL, and location already in the shared event record.
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Implementation path
+      description: "Suggested steps for a student contributor"
+      value: |
+        1. Read the `Hackathon` contract in `src/types/hackathon.ts` and the drawer in `src/components/apps/radar/HackathonDetailDrawer.tsx`.
+        2. Build a Google Calendar template URL from `title`, `startDate`, `endDate`, `websiteUrl`, and the available venue fields. Do not invent a venue or eligibility detail.
+        3. Format dates in the Calendar URL's UTC form and encode every user-visible value with `URLSearchParams`.
+        4. Open the URL in a new tab with `noopener,noreferrer`; add an accessible name and a test for online and India in-person events.
+        5. Verify that missing optional fields remain omitted rather than becoming the string "undefined".
+      placeholder: "Describe any edge cases you found in the event contract."
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      value: |
+        - [ ] The detail drawer offers an accessible Add to Google Calendar action.
+        - [ ] Dates, title, official page, and known location are encoded correctly.
+        - [ ] Online events are clearly represented as online.
+        - [ ] Tests and typecheck pass.
+    validations:
+      required: true

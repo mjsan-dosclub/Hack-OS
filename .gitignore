@@ -1,0 +1,11 @@
+node_modules/
+.next/
+.env*
+!.env.example
+supabase/.branches/
+supabase/.temp/
+drizzle/
+*.tsbuildinfo
+coverage/
+playwright-report/
+test-results/

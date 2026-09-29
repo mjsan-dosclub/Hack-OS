@@ -1,0 +1,36 @@
+name: "Add sound effects to window drag and dock hover"
+description: "Good first issue · frontend and interaction design"
+title: "feat: add accessible sound effects for desktop interactions"
+labels:
+  - "good first issue"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Goal
+        Add optional, subtle feedback sounds when a window is dragged or a dock icon is activated. Prefer the browser Web Audio API so the first implementation does not need another package. A Howler.js implementation is acceptable only if maintainers approve adding that dependency first.
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Implementation path
+      description: "Suggested steps for a student contributor"
+      value: |
+        1. Inspect `src/components/os/WindowFrame.tsx` and `src/components/os/Dock.tsx` to identify drag-start and dock-activation events.
+        2. Add a small client-only sound helper in `src/lib/os/soundEffects.ts` using short Web Audio oscillator tones; create audio contexts only after a user gesture.
+        3. Keep sound disabled by default or expose a clear mute control; respect reduced motion and keyboard users, and never play a sound on every pointer-move frame.
+        4. Add a unit test for the enabled/disabled settings and manually verify the interactions in a browser.
+        5. Document how to mute the sounds and include a short recording in the pull request.
+      placeholder: "Describe implementation details or accessibility considerations."
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      value: |
+        - [ ] Sound is subtle and only plays on discrete interactions.
+        - [ ] Users can mute it, and it does not play before a user gesture.
+        - [ ] Dragging remains smooth and keyboard interactions stay silent or receive equivalent accessible feedback.
+        - [ ] Tests and typecheck pass.
+    validations:
+      required: true

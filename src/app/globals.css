@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body { margin: 0; background: #101218; color: #eef0f5; font-family: Arial, Helvetica, sans-serif; }
+
+.desktop-grain::before {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  opacity: 0.045;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.92' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.65'/%3E%3C/svg%3E");
+}
+
+.hackmap-canvas { height: 100%; width: 100%; min-height: 300px; background: #131820; font-family: Arial, Helvetica, sans-serif; }
+.hackmap-icon { background: transparent; border: 0; }
+.hackmap-pin { position: relative; display: grid; width: 36px; height: 36px; place-items: center; border: 2px solid rgba(236,254,255,.95); border-radius: 50% 50% 50% 6px; background: linear-gradient(145deg,#34d399,#0891b2); box-shadow: 0 8px 22px rgba(0,0,0,.42); transform: rotate(-45deg); transition: transform .18s ease, filter .18s ease; }
+.hackmap-pin::before { position: absolute; inset: 4px; border: 1px solid rgba(255,255,255,.26); border-radius: inherit; content: ""; }
+.hackmap-pin i { width: 7px; height: 7px; border-radius: 50%; background: #f0fdfa; box-shadow: 0 0 9px rgba(240,253,250,.8); }
+.hackmap-pin-selected { filter: brightness(1.28); transform: rotate(-45deg) scale(1.15); }
+.hackmap-count { position: absolute; z-index: 1; display: grid; width: 18px; height: 18px; place-items: center; border: 1px solid rgba(255,255,255,.75); border-radius: 50%; background: #111827; color: #a7f3d0; font: 700 9px/1 Arial,sans-serif; transform: rotate(45deg); }
+.hackmap-popup .leaflet-popup-content-wrapper { border: 1px solid rgba(15,23,42,.12); border-radius: 12px; box-shadow: 0 18px 40px rgba(0,0,0,.28); }
+.hackmap-popup .leaflet-popup-content { margin: 10px; }
+.hackmap-popup .leaflet-popup-tip { background: #fff; }
+.hackmap-canvas .leaflet-control-zoom { overflow: hidden; border: 1px solid rgba(255,255,255,.14) !important; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.28) !important; }
+.hackmap-canvas .leaflet-control-zoom a { border-color: rgba(255,255,255,.1) !important; background: #171a23 !important; color: #e8eef2 !important; }
+.hackmap-canvas .leaflet-control-zoom a:hover { background: #252c37 !important; color: #a7f3d0 !important; }
+.hackmap-canvas .leaflet-control-attribution { border-top-left-radius: 7px; background: rgba(17,20,28,.82); color: rgba(255,255,255,.55); }
+.hackmap-canvas .leaflet-control-attribution a { color: #a7f3d0; }

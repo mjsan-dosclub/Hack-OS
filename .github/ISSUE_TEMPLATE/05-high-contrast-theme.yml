@@ -1,0 +1,36 @@
+name: "Add a high-contrast monochrome desktop theme"
+description: "Good first issue · visual design and accessibility"
+title: "feat: add a high-contrast retro monochrome theme"
+labels:
+  - "good first issue"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Goal
+        Add a high-contrast retro monochrome theme that remains readable across the desktop, windows, dock, command palette, Radar, and map controls.
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Implementation path
+      description: "Suggested steps for a student contributor"
+      value: |
+        1. Review the desktop shell in `src/components/os/Desktop.tsx` and shared palette classes in the OS and Radar components.
+        2. Add an explicit theme choice to the OS settings/menu UI and a typed theme state in `Desktop`; avoid scattering unrelated one-off color overrides.
+        3. Use a shared data attribute or CSS custom properties in `src/app/globals.css` so text, focus rings, borders, and surfaces change together.
+        4. Preserve visible keyboard focus and test text contrast for body text, controls, disabled states, and map attribution.
+        5. Add a browser smoke check for switching themes and include before/after screenshots.
+      placeholder: "Note any contrast or focus-state issues you discover."
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      value: |
+        - [ ] Users can switch to and from the monochrome theme without reloading.
+        - [ ] Text, controls, and focus indicators remain distinguishable.
+        - [ ] Radar and map interactions remain usable in the theme.
+        - [ ] Tests and typecheck pass.
+    validations:
+      required: true

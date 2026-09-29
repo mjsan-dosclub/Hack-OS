@@ -1,0 +1,36 @@
+name: "Add a tech stack recommender to the AI Co-Pilot"
+description: "Good first issue · AI prompts and product design"
+title: "feat: add a grounded tech stack recommender mode"
+labels:
+  - "good first issue"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Goal
+        Add a Co-Pilot mode that recommends an implementable stack based on the team's skills, available hours, event context, and the packages already in this repository.
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Implementation path
+      description: "Suggested steps for a student contributor"
+      value: |
+        1. Read the mode schemas in `src/schemas/copilot.ts`, prompt definitions in `src/lib/copilot/prompts.ts`, chat route in `src/app/api/copilot/chat/route.ts`, and UI tabs in `src/components/apps/copilot/CopilotApp.tsx`.
+        2. Define a typed mode and explicit response requirements. Recommend existing dependencies first; do not invent sponsor APIs, packages, or event rules.
+        3. Make the answer explain why each technology fits the actual team and what deterministic fallback works if AI or an external service is unavailable.
+        4. Add UI loading/error states and schema-focused tests. Keep provider credentials server-side.
+        5. Verify a beginner and advanced team example and document where event context is missing.
+      placeholder: "Describe the decision rubric you want the recommender to follow."
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      value: |
+        - [ ] The new mode is grounded in the existing team and hackathon contracts.
+        - [ ] Recommendations distinguish installed packages from optional additions.
+        - [ ] Empty context, provider failure, and malformed output have useful UI states.
+        - [ ] Tests and typecheck pass.
+    validations:
+      required: true
