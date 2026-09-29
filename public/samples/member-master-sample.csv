@@ -1,0 +1,2 @@
+full_name,email,gender,college,degree,department,date_of_birth,cgpa,cgpa_scale,membership_status,github,linkedin,portfolio,primary_skills,comfortable_tech,interests,college_year,current_role,city,can_travel,recent_projects,disc_profile,agile_score,assessment_date,assessment_consent
+Synthetic Sample Student,student.sample@example.invalid,Prefer not to say,Demo College,B.Tech,Computer Science,2003-05-17,8.2,10,guest,,,,TypeScript; UI design,React; Figma,climate tech; open source,2025,Undergraduate,Chennai,no,Campus Sustainability Dashboard,DI,86,2026-01-15,no

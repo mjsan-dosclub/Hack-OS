@@ -21,7 +21,7 @@ import {
 	type HackathonSort,
 	type PrizeThreshold,
 } from "@/hooks/useHackathonFilter";
-import { MOCK_HACKATHONS } from "@/lib/mockHackathons";
+import { usePublishedHackathons } from "@/hooks/usePublishedHackathons";
 import { useWindowManager } from "@/stores/useWindowManager";
 import type { Hackathon } from "@/types/hackathon";
 
@@ -43,8 +43,9 @@ const selectClass =
 
 /** Radar app is the discovery shell; URL filters stay shareable across sessions. */
 export function RadarApp() {
+	const { events, loading, error, refresh } = usePublishedHackathons();
 	const { filters, filteredEvents, update, toggleTag, reset } =
-		useHackathonFilter(MOCK_HACKATHONS);
+		useHackathonFilter(events);
 	const [view, setView] = useState<ViewMode>("grid");
 	const [filtersOpen, setFiltersOpen] = useState(true);
 	const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
@@ -221,8 +222,8 @@ export function RadarApp() {
 								</div>
 							</fieldset>
 							<p className="mt-5 text-[9px] leading-4 text-white/30">
-								Sample events are for interface exploration. Confirm live
-								deadlines on the official source.
+								Only reviewed, published events appear here. Confirm deadlines
+								on the official event page before applying.
 							</p>
 						</div>
 					</motion.aside>
@@ -346,16 +347,31 @@ export function RadarApp() {
 						<strong className="font-semibold text-white">
 							{filteredEvents.length}
 						</strong>{" "}
-						sample opportunities
+						verified opportunities
 					</p>
 					<p className="hidden items-center gap-1.5 text-[9px] text-white/30 sm:flex">
 						<CalendarDays className="size-3" />
-						Dates are illustrative · verify before applying
+						Approved by DeScience · confirm details before applying
 					</p>
 				</div>
 
 				<div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
-					{visibleEvents.length > 0 ? (
+					{loading ? (
+						<p className="mx-auto mt-10 max-w-sm text-center text-xs text-white/50">
+							Loading verified events…
+						</p>
+					) : error ? (
+						<div className="mx-auto mt-10 max-w-sm rounded-xl border border-rose-200/20 p-6 text-center text-xs text-rose-100">
+							<p>{error}</p>
+							<button
+								type="button"
+								onClick={() => void refresh()}
+								className="mt-3 rounded-lg border border-white/20 px-3 py-2"
+							>
+								Retry
+							</button>
+						</div>
+					) : visibleEvents.length > 0 ? (
 						view === "timeline" ? (
 							<div className="mx-auto max-w-3xl space-y-3">
 								{visibleEvents.map((event) => (
@@ -404,18 +420,24 @@ export function RadarApp() {
 						<div className="mx-auto mt-10 max-w-sm rounded-xl border border-dashed border-white/10 p-8 text-center">
 							<Search className="mx-auto size-5 text-white/25" />
 							<h2 className="mt-3 text-sm font-medium text-white/75">
-								No events match these filters
+								{events.length === 0
+									? "No approved events are live yet"
+									: "No events match these filters"}
 							</h2>
 							<p className="mt-1 text-[10px] leading-5 text-white/35">
-								Try a wider search or reset the filters.
+								{events.length === 0
+									? "Club admins review official event details before they appear here."
+									: "Try a wider search or reset the filters."}
 							</p>
-							<button
-								type="button"
-								onClick={clearFilters}
-								className="mt-4 rounded-lg border border-white/10 px-3 py-2 text-[10px] text-white/65 hover:border-cyan-100/30"
-							>
-								Clear all filters
-							</button>
+							{events.length > 0 && (
+								<button
+									type="button"
+									onClick={clearFilters}
+									className="mt-4 rounded-lg border border-white/10 px-3 py-2 text-[10px] text-white/65 hover:border-cyan-100/30"
+								>
+									Clear all filters
+								</button>
+							)}
 						</div>
 					)}
 					{filteredEvents.length > visibleCount && (

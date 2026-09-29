@@ -1,6 +1,6 @@
 # Hack OS (DeScience Radar)
 
-Hack OS is a browser desktop for discovering hackathons and finding teammates. The Day 1 foundation separates the operating-system shell, directory domain, and trusted ingestion pipeline so student contributors can work in small, understandable pieces.
+Hack OS is the DeScience Open Source Club member portal, with a public hackathon directory as its discovery surface. Verified members can sign in without a password, set up an authenticator, complete a team profile, and find relevant events, teammates, and mentors.
 
 ## Architecture at a glance
 
@@ -16,10 +16,22 @@ Server ingestion action ── Drizzle ── Supabase PostgreSQL
                                       ▼
                       Radar UI + client filter state
                                       │
-                        OS canvas / Zustand windows
+                      OS canvas / Zustand windows
 ```
 
-Scrapers normalize provider data into `HackathonInsert`, validate it at the boundary, and write through trusted server-side code. Public queries select only published and verified rows. Server components load directory data; client components use the window manager for desktop chrome and local interaction state. Do not put database credentials or Supabase service-role keys in client modules.
+Member records use a separate private path:
+
+```text
+Admin file upload → private Supabase Storage → safe Excel/CSV/text extraction
+                                                ├─ roster/profile upsert by email
+                                                ├─ consented DISC + Agile history
+                                                └─ private full-text index
+Verified member request → local event/member shortlist
+                         → optional, consent-gated excerpts to JarvisLabs Ollama
+                         → validated candidate keys mapped back to member cards
+```
+
+Scrapers normalize provider data into `HackathonInsert`, validate it at the boundary, and write through trusted server-side code. Public queries select only published and verified rows with an open or upcoming application status and a future registration deadline when one is provided. Radar and Map fetch the public `/api/hackathons` feed and validate its response against the shared Zod display contract; Synergy queries the same eligible event set for member matching. Client components use the window manager for desktop chrome and local interaction state. Do not put database credentials or Supabase service-role keys in client modules.
 
 ```text
 Devpost RSS/listing ─┐
@@ -62,6 +74,7 @@ hack-os/
 - **Scrapers:** add a source adapter under `src/lib/scrapers/`, return only `RawHackathonData`, and let `sanitizeHackathon` validate it before `syncEngine` writes. Use public pages/RSS and the shared polite fetcher; do not depend on undocumented JSON endpoints. Adapters never expose credentials in the browser.
 - **Map providers:** isolate Leaflet-specific code under `src/components/apps/map/`; keep marker inputs as `Hackathon[]` and map-specific state local to that feature. The student directory scope is India venues plus online events; overseas physical listings should not be ingested.
 - **Shared data contracts:** change the Zod schema and types together, then create a migration for persisted shape changes. Never edit synced project reference folders as implementation targets.
+- **Member data:** use the single admin library at `/admin/library` for original files. Excel/CSV rows with email and name import roster details; later skills/project files update the same member by normalized email. DISC/Agile rows require an affirmative per-row consent value and a valid two-letter DISC combination. Never put gender, date of birth, or CGPA into a client DTO or AI prompt.
 
 ## Start locally
 
@@ -115,7 +128,7 @@ The SQL file in `supabase/migrations/0001_hack_os.sql` is the source of truth fo
 - Press **Alt+Tab** to cycle through visible windows. Press **⌘W** / **Ctrl+W** to close the focused window.
 - App metadata and window defaults live in the `APP_REGISTRY` in `src/stores/useWindowManager.ts`.
 - The AI Project Ideator, Co-Pilot chat, and evaluator use only the JarvisLabs-hosted Ollama model during development. Set `JARVISLABS_API_KEY`, `JARVISLABS_BASE_URL`, and `JARVISLABS_MODEL` in `.env.local`; requests consume the JarvisLabs resources attached to that endpoint. Google and Groq keys, if present, are ignored. Keep credentials server-side and never give them a `NEXT_PUBLIC_` prefix.
-- Directory and map views use the shared, Zod-validated `Hackathon` contract. The UI ships 13 clearly labeled illustrative records from `src/lib/mockHackathons.ts`; titles, dates, and prize amounts are sample data, and links go to real source directories. Replace this fixture with published and verified database rows before treating the directory as live.
+- Directory and map views use the shared, Zod-validated `Hackathon` contract and display eligible events from `/api/hackathons`. The old `src/lib/mockHackathons.ts` fixture is retained for learning examples; it is not shown as a live opportunity in the desktop.
 
 ## Day 5: AI Hackathon Co-Pilot
 
@@ -135,10 +148,23 @@ The SQL file in `supabase/migrations/0001_hack_os.sql` is the source of truth fo
 
 1. **Foundation:** app shell, schema, RLS, shared validation and window manager.
 2. **Desktop UX:** menu bar, draggable/resizable windows, dock, command palette, keyboard focus, and terminal/ideator mini-apps (implemented).
-3. **Radar and map:** responsive directory, URL-synced filters, deadline countdowns, event inspection, Leaflet discovery (fixture-backed UI implemented; live database query and date-range Gantt view remain follow-ups).
-4. **Ingestion:** public-source adapters, Zod sanitation, idempotent upserts, verification checks and scheduled refresh (implemented; moderation UI and live-data QA remain follow-ups).
+3. **Radar and map:** responsive directory, URL-synced filters, deadline countdowns, event inspection, Leaflet discovery, and a live reviewed-event query (date-range Gantt view remains a follow-up).
+4. **Ingestion:** public-source adapters, Zod sanitation, idempotent upserts, verification checks, scheduled refresh, and admin event review (implemented; live-data QA remains a follow-up).
 5. **AI Co-Pilot:** event-grounded brainstorming, architecture, structured evaluation, and sprint planning (implemented).
 6. **Contributor engine:** Vitest unit/integration coverage, Playwright desktop navigation, Biome checks, GitHub CI, contribution guide, PR template, and five student issue templates (implemented).
 7. **Polish and launch:** authenticated profiles and persistent bookmarks, live verified-event queries, moderator review, accessibility, performance, observability, and deployment.
 
 Each day ends with a working increment and a short contributor note explaining the concepts used. Student contributors should add focused tests alongside new behavior and keep fixture data visibly labeled.
+
+## Member portal and knowledge library
+
+- `/admin/hackathons` is the administrator's event review screen. Open the official listing, correct the record, and approve it to make it visible to members. Saving corrections or hiding an event removes publication until it is approved again. Closed or ended registrations cannot be approved as open opportunities.
+
+- `/login` accepts an email one-time code. An uploaded roster record links to the Supabase Auth identity by normalized confirmed email. Only roster rows marked as verified and current, alumnus, or mentor can enter the member workspace. The first visit requires TOTP enrollment; subsequent visits require the verified second factor.
+- `/admin/library` is one upload area for all nine college files and follow-up files. It stores the original in a private `member-library` bucket, keeps a searchable text index, and updates structured profile fields only when a workbook has a matching email. Add the college name in the upload form when a basic roster sheet has no college column.
+- Supported indexed formats are `.xlsx`, `.xls`, `.csv`, `.txt`, `.md`, and `.json` (10 MB maximum). PDF and DOCX extraction is not part of the current dependency set, so those files are not accepted yet.
+- The roster supports name, email, gender, college, degree, department, date of birth, CGPA and scale, skills, comfortable technologies, interests, projects, links, location, and travel availability. Gender, date of birth, and CGPA are private admin data: they are not shown on member cards and are not sent to Ollama or used to rank matches.
+- DISC is validated as a two-letter combination of distinct traits: `DI`, `DS`, `DC`, `ID`, `IS`, `IC`, `SD`, `SI`, `SC`, `CD`, `CI`, or `CS`. Assessment history is keyed by member and assessment date. Rows without explicit assessment consent are archived in the original file but their DISC/Agile values are excluded from the searchable index and assessment table.
+- Hosted Ollama receives no names, email addresses, or social links. It receives a student's match request only when that student opts in, and candidate profiles only when those members separately opted in. The admin must also mark each source file AI-enabled. The model returns opaque candidate keys; the server maps them to local member records. If Ollama is unavailable, the endpoint uses local rules instead.
+- Before using real student records, configure the private Storage service key in `.env.local` and apply migrations `0007`–`0009`. Do not commit real workbooks or populated environment files. The downloadable CSV is a fictional guest record for exercising the upload parser; it cannot sign in or appear in member matches.
+- To bootstrap an administrator, create the account through email sign-in, then have the database owner assign that Auth UUID the `admin` role in `public.users`. Never expose role assignment through a client-side form.

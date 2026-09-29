@@ -1,19 +1,27 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import {
 	Activity,
 	BookOpen,
+	Check,
 	ChevronDown,
 	Command,
 	ExternalLink,
 	Globe2,
+	Palette,
 	RefreshCw,
 	Settings2,
 	Terminal,
+	Type,
 	Wifi,
 	WifiOff,
 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import type {
+	DesktopFontFamily,
+	DesktopFontSize,
+	DesktopTheme,
+} from "@/hooks/useDesktopAppearance";
 import { useWindowManager } from "@/stores/useWindowManager";
 
 export type ClockMode = "12h" | "24h";
@@ -24,6 +32,12 @@ interface MenuBarProps {
 	onOpenTerminal: () => void;
 	onOpenHelp: () => void;
 	onOpenPalette: () => void;
+	theme: DesktopTheme;
+	onThemeChange: (theme: DesktopTheme) => void;
+	fontSize: DesktopFontSize;
+	onFontSizeChange: (size: DesktopFontSize) => void;
+	fontFamily: DesktopFontFamily;
+	onFontFamilyChange: (family: DesktopFontFamily) => void;
 }
 
 const CLUB_URL = "https://descienceosclub.com/";
@@ -36,6 +50,12 @@ export function MenuBar({
 	onOpenTerminal,
 	onOpenHelp,
 	onOpenPalette,
+	theme,
+	onThemeChange,
+	fontSize,
+	onFontSizeChange,
+	fontFamily,
+	onFontFamilyChange,
 }: MenuBarProps) {
 	const [menuOpen, setMenuOpen] = useState(false);
 	const [clock, setClock] = useState("");
@@ -119,7 +139,7 @@ export function MenuBar({
 					{menuOpen && (
 						<div
 							role="menu"
-							className="absolute left-0 top-10 z-[900] w-60 rounded-xl border border-white/15 bg-[#1a1d27]/95 p-1.5 shadow-2xl backdrop-blur-2xl"
+							className="absolute left-0 top-10 z-[900] max-h-[calc(100dvh-60px)] w-72 overflow-y-auto rounded-xl border border-white/15 bg-[#1a1d27]/95 p-1.5 shadow-2xl backdrop-blur-2xl"
 						>
 							<p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-white/35">
 								DeScience Open Source Club
@@ -164,6 +184,79 @@ export function MenuBar({
 							<p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-white/35">
 								OS Settings
 							</p>
+							<div className="px-3 pb-3">
+								<p className="mb-2 flex items-center gap-2 text-xs font-medium text-white/75">
+									<Palette className="size-3.5" /> Desktop theme
+								</p>
+								<fieldset
+									className="grid grid-cols-2 gap-1.5"
+									aria-label="Desktop theme"
+								>
+									{(["midnight", "aurora", "ember", "light"] as const).map(
+										(item) => (
+											<button
+												key={item}
+												type="button"
+												aria-pressed={theme === item}
+												onClick={() => onThemeChange(item)}
+												className={`flex items-center justify-between rounded-lg border px-2 py-2 text-[10px] capitalize transition ${theme === item ? "border-cyan-100/30 bg-cyan-100/10 text-cyan-50" : "border-white/10 text-white/55 hover:bg-white/5"}`}
+											>
+												{item}
+												{theme === item && <Check className="size-3" />}
+											</button>
+										),
+									)}
+								</fieldset>
+							</div>
+							<div className="px-3 pb-3">
+								<p className="mb-2 flex items-center gap-2 text-xs font-medium text-white/75">
+									<Type className="size-3.5" /> Text size
+								</p>
+								<fieldset
+									className="grid grid-cols-3 gap-1.5"
+									aria-label="Text size"
+								>
+									{(["standard", "large", "largest"] as const).map(
+										(item, index) => (
+											<button
+												key={item}
+												type="button"
+												aria-pressed={fontSize === item}
+												onClick={() => onFontSizeChange(item)}
+												className={`rounded-lg border px-2 py-2 text-xs transition ${fontSize === item ? "border-cyan-100/30 bg-cyan-100/10 text-cyan-50" : "border-white/10 text-white/55 hover:bg-white/5"}`}
+											>
+												<span className="font-semibold">
+													{["A", "A+", "A++"][index]}
+												</span>
+												<span className="ml-1 text-[9px] text-white/45">
+													{["100%", "112%", "125%"][index]}
+												</span>
+											</button>
+										),
+									)}
+								</fieldset>
+							</div>
+							<div className="px-3 pb-2">
+								<p className="mb-2 flex items-center gap-2 text-xs font-medium text-white/75">
+									<Type className="size-3.5" /> Font family
+								</p>
+								<fieldset
+									className="grid grid-cols-2 gap-1.5"
+									aria-label="Font family"
+								>
+									{(["system", "arial"] as const).map((item) => (
+										<button
+											key={item}
+											type="button"
+											aria-pressed={fontFamily === item}
+											onClick={() => onFontFamilyChange(item)}
+											className={`rounded-lg border px-2 py-2 text-xs capitalize transition ${fontFamily === item ? "border-cyan-100/30 bg-cyan-100/10 text-cyan-50" : "border-white/10 text-white/55 hover:bg-white/5"}`}
+										>
+											{item === "system" ? "System UI" : "Arial"}
+										</button>
+									))}
+								</fieldset>
+							</div>
 							<button
 								type="button"
 								role="menuitem"

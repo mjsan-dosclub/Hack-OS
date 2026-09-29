@@ -1,28 +1,29 @@
 "use client";
 
 import {
-	useEffect,
-	useRef,
-	type PointerEvent as ReactPointerEvent,
-	type RefObject,
-} from "react";
-import {
 	motion,
+	type PanInfo,
 	useDragControls,
 	useMotionValue,
-	type PanInfo,
 } from "framer-motion";
 import {
 	BookOpen,
+	type LucideIcon,
 	Map as MapIcon,
 	Maximize2,
 	Minus,
 	Radar,
 	Sparkles,
 	Terminal,
+	UsersRound,
 	X,
-	type LucideIcon,
 } from "lucide-react";
+import {
+	type PointerEvent as ReactPointerEvent,
+	type RefObject,
+	useEffect,
+	useRef,
+} from "react";
 import type {
 	AppKey,
 	DesktopWindow,
@@ -55,6 +56,7 @@ const WINDOW_ICONS: Record<AppKey, LucideIcon> = {
 	map: MapIcon,
 	copilot: Sparkles,
 	help: BookOpen,
+	synergy: UsersRound,
 };
 
 export function WindowFrame({
@@ -236,7 +238,7 @@ export function WindowFrame({
 			exit={{ opacity: 0.3, scale: 0.3, transition: { duration: 0.2 } }}
 			transition={{ type: "spring", stiffness: 300, damping: 25, mass: 0.75 }}
 			aria-label={`${item.title} window`}
-			className={`pointer-events-auto absolute flex flex-col overflow-hidden rounded-xl border bg-[#171a23]/90 shadow-2xl shadow-black/40 backdrop-blur-2xl ${active ? "border-cyan-200/50 ring-1 ring-cyan-100/10" : "border-white/15"} ${item.isMaximized ? "!bottom-3 !left-3 !right-3 !top-3 !h-auto !w-auto" : ""}`}
+			className={`os-window-frame pointer-events-auto absolute flex flex-col overflow-hidden rounded-xl border bg-[#171a23]/90 shadow-2xl shadow-black/40 backdrop-blur-2xl ${active ? "border-cyan-200/50 ring-1 ring-cyan-100/10" : "border-white/15"} ${item.isMaximized ? "!bottom-3 !left-3 !right-3 !top-3 !h-auto !w-auto" : ""}`}
 			style={geometryStyle}
 		>
 			<header

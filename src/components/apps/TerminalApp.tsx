@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ChevronRight, Terminal as TerminalIcon } from "lucide-react";
-import { MOCK_HACKATHONS } from "@/lib/mockHackathons";
+import { usePublishedHackathons } from "@/hooks/usePublishedHackathons";
 
 type TerminalLine = {
 	id: number;
@@ -19,7 +19,7 @@ const ABOUT_LINES = [
 const HELP_LINES = [
 	"help                 Show available commands",
 	"about                Learn about the DeScience Open Source Club",
-	"hackathons           Show events currently in the local directory",
+	"hackathons           Show reviewed events currently available",
 	"join                 Open the membership portal URL",
 	"clear                Clear terminal history",
 	"whoami               Show the current local session",
@@ -28,6 +28,9 @@ const HELP_LINES = [
 
 function commandResult(
 	command: string,
+	eventCount: number,
+	eventsLoading: boolean,
+	eventsError: string,
 ): { kind: TerminalLine["kind"]; text: string }[] | null {
 	switch (command) {
 		case "help":
@@ -37,8 +40,12 @@ function commandResult(
 		case "hackathons":
 			return [
 				{
-					kind: "output",
-					text: `${MOCK_HACKATHONS.length} illustrative sample hackathons are loaded. Dates and prizes need verification on the linked source directories.`,
+					kind: eventsError ? "error" : "output",
+					text: eventsError
+						? "The verified event directory is unavailable. Try again shortly."
+						: eventsLoading
+							? "Loading reviewed hackathons…"
+							: `${eventCount} verified hackathon${eventCount === 1 ? " is" : "s are"} currently available. Open Radar to browse.`,
 				},
 			];
 		case "join":
@@ -77,6 +84,7 @@ function commandResult(
 }
 
 export function TerminalApp() {
+	const { events, loading, error } = usePublishedHackathons();
 	const [lines, setLines] = useState<TerminalLine[]>([
 		{
 			id: 0,
@@ -118,7 +126,7 @@ export function TerminalApp() {
 			kind: "command",
 			text: raw,
 		};
-		const results = commandResult(normalized);
+		const results = commandResult(normalized, events.length, loading, error);
 		const outputLines: { kind: TerminalLine["kind"]; text: string }[] =
 			results ?? [
 				{
