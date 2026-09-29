@@ -47,8 +47,43 @@ function nullable(value: string): string | null {
 }
 
 function parseDate(value: string): string {
-	const time = Date.parse(value);
-	return value && Number.isFinite(time) ? new Date(time).toISOString() : "";
+	const input = value.trim();
+	if (!input) return "";
+	const indianDate =
+		/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})(?:,?\s+(\d{1,2}):(\d{2})\s*(AM|PM))?$/i.exec(
+			input,
+		);
+	if (indianDate) {
+		const day = Number(indianDate[1]);
+		const month = Number(indianDate[2]);
+		const year = Number(indianDate[3]);
+		let hour = Number(indianDate[4] ?? "0");
+		const minute = Number(indianDate[5] ?? "0");
+		const meridiem = indianDate[6]?.toUpperCase();
+		if (meridiem) {
+			if (hour < 1 || hour > 12 || minute > 59) return "";
+			hour = (hour % 12) + (meridiem === "PM" ? 12 : 0);
+		} else if (hour > 23 || minute > 59) {
+			return "";
+		}
+		const calendar = new Date(Date.UTC(year, month - 1, day));
+		if (
+			calendar.getUTCFullYear() !== year ||
+			calendar.getUTCMonth() !== month - 1 ||
+			calendar.getUTCDate() !== day
+		)
+			return "";
+		return new Date(
+			Date.UTC(year, month - 1, day, hour - 5, minute - 30),
+		).toISOString();
+	}
+	const hasExplicitZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(input);
+	const isoLocal =
+		/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?)?$/i.test(input);
+	const time = Date.parse(
+		isoLocal && !hasExplicitZone ? `${input}+05:30` : input,
+	);
+	return Number.isFinite(time) ? new Date(time).toISOString() : "";
 }
 
 function issueMessage(issue: z.ZodIssue): string {
@@ -103,14 +138,33 @@ function parseBulkEvents(
 	const issues: EventImportIssue[] = [];
 	rows.forEach((row, index) => {
 		const rowNumber = index + 2;
-		const formatText = value(row, ["format", "event format"])
+		const formatRaw = value(row, ["format", "event format"])
 			.toLowerCase()
 			.replaceAll("_", "-");
-		const statusText = value(row, [
-			"application status",
-			"registration status",
-			"status",
+		const formatText =
+			formatRaw === "offline" || formatRaw === "in person"
+				? "in-person"
+				: formatRaw === "virtual"
+					? "online"
+					: formatRaw;
+		const statusAtCity = value(row, [
+			"venue city",
+			"city",
+			"location city",
 		]).toLowerCase();
+		const usesLegacyColumnOrder = [
+			"open",
+			"upcoming",
+			"closed",
+			"ended",
+		].includes(statusAtCity);
+		const statusText = usesLegacyColumnOrder
+			? statusAtCity
+			: value(row, [
+					"application status",
+					"registration status",
+					"status",
+				]).toLowerCase();
 		const currencyText = value(row, ["prize currency", "currency"]);
 		const prizeSource = value(row, [
 			"total prize value",
@@ -128,25 +182,35 @@ function parseBulkEvents(
 			"url",
 			"registration link",
 		]);
-		const description = value(row, ["description", "summary"]);
-		const bannerUrl = value(row, [
-			"banner url",
-			"banner image url",
-			"image url",
-		]);
-		const venueCity = value(row, ["venue city", "city", "location city"]);
-		const venueCountry = value(row, [
-			"venue country",
-			"country",
-			"location country",
-		]);
-		const startText = value(row, ["start date", "start", "event start"]);
-		const endText = value(row, ["end date", "end", "event end"]);
-		const deadlineText = value(row, [
-			"registration deadline",
-			"deadline",
-			"application deadline",
-		]);
+		const description = usesLegacyColumnOrder
+			? value(row, ["banner url", "banner image url", "image url"])
+			: value(row, ["description", "summary"]);
+		const bannerUrl = usesLegacyColumnOrder
+			? value(row, ["description", "summary"])
+			: value(row, ["banner url", "banner image url", "image url"]);
+		const venueCity = usesLegacyColumnOrder
+			? value(row, ["venue country", "country", "location country"])
+			: value(row, ["venue city", "city", "location city"]);
+		const venueCountry = usesLegacyColumnOrder
+			? value(row, ["start date", "start", "event start"])
+			: value(row, ["venue country", "country", "location country"]);
+		const startText = usesLegacyColumnOrder
+			? value(row, ["end date", "end", "event end"])
+			: value(row, ["start date", "start", "event start"]);
+		const endText = usesLegacyColumnOrder
+			? value(row, [
+					"registration deadline",
+					"deadline",
+					"application deadline",
+				])
+			: value(row, ["end date", "end", "event end"]);
+		const deadlineText = usesLegacyColumnOrder
+			? value(row, ["application status"])
+			: value(row, [
+					"registration deadline",
+					"deadline",
+					"application deadline",
+				]);
 		const values = {
 			title,
 			organizer,

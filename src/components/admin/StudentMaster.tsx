@@ -361,6 +361,14 @@ export function StudentMaster() {
 								Required columns: name, email, batch year, college, department,
 								degree, gender.
 							</p>
+							<p className="mt-1 text-xs text-white/45">
+								Membership status (optional):{" "}
+								<span className="text-white/65">current</span>,{" "}
+								<span className="text-white/65">alumnus</span>,{" "}
+								<span className="text-white/65">mentor</span>, or{" "}
+								<span className="text-white/65">guest</span>. Blank defaults to
+								current; guests cannot sign in.
+							</p>
 						</div>
 						<div className="flex flex-wrap items-center gap-2">
 							<button

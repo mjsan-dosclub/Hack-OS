@@ -564,6 +564,16 @@ export function HackathonModeration() {
 							/>
 						</button>
 					</div>
+					<p className="mt-3 basis-full text-right text-xs text-slate-500">
+						Formats:{" "}
+						<span className="text-slate-300">online, in-person, hybrid</span>{" "}
+						(also accepts Online / Offline). Status:{" "}
+						<span className="text-slate-300">
+							upcoming, open, closed, ended
+						</span>
+						. Dates: ISO with timezone or day/month/year and time. The template
+						includes one clearly labeled sample row; remove it before importing.
+					</p>
 				</header>
 				{error && (
 					<div
