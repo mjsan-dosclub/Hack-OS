@@ -47,5 +47,7 @@ export const memberAccessSchema = z
 	})
 	.strict();
 
+export const memberAccessActionSchema = z.enum(["setup_mfa", "verify_mfa"]);
+
 export type MemberEmail = z.infer<typeof memberEmailSchema>;
 export type MemberAccess = z.infer<typeof memberAccessSchema>;

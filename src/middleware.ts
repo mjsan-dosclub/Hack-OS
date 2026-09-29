@@ -164,8 +164,17 @@ export async function middleware(request: NextRequest) {
 	}
 	if (assurance.currentLevel !== "aal2") {
 		if (pathname.startsWith("/api/")) {
+			const { data: factors } = await supabase.auth.mfa.listFactors();
+			const hasVerifiedTotp = factors?.totp.some(
+				(factor) => factor.status === "verified",
+			);
 			return NextResponse.json(
-				{ error: "Two-step verification required." },
+				{
+					error: hasVerifiedTotp
+						? "Verify your authenticator to continue."
+						: "Set up an authenticator to continue.",
+					action: hasVerifiedTotp ? "verify_mfa" : "setup_mfa",
+				},
 				{ status: 403 },
 			);
 		}

@@ -15,6 +15,7 @@ import {
 	UsersRound,
 } from "lucide-react";
 import { type FormEvent, useState } from "react";
+import { memberAccessActionSchema } from "@/schemas/auth";
 import {
 	type SynergyMatchResponse,
 	synergyMatchResponseSchema,
@@ -39,17 +40,41 @@ function splitList(value: string): string[] {
 	];
 }
 
-function ErrorPanel({ text, onSignIn }: { text: string; onSignIn: boolean }) {
+type AccessAction = "sign_in" | "setup_mfa" | "verify_mfa" | null;
+
+function ErrorPanel({ text, action }: { text: string; action: AccessAction }) {
+	const href =
+		action === "sign_in"
+			? "/login?next=%2Fapps%2Fsynergy"
+			: action === "setup_mfa"
+				? "/auth/mfa/setup?next=%2F"
+				: action === "verify_mfa"
+					? "/auth/mfa/verify?next=%2F"
+					: null;
+	const opensNewTab = action === "setup_mfa" || action === "verify_mfa";
 	return (
 		<div className="mt-5 rounded-xl border border-amber-200/15 bg-amber-200/[0.06] p-4 text-sm text-amber-50/80">
 			<p>{text}</p>
-			{onSignIn && (
+			{href && (
 				<a
-					href="/login?next=%2Fapps%2Fsynergy"
+					href={href}
+					target={opensNewTab ? "_blank" : undefined}
+					rel={opensNewTab ? "noreferrer" : undefined}
 					className="mt-3 inline-flex items-center gap-2 font-semibold text-cyan-100 hover:text-white"
 				>
-					Sign in to member portal <ExternalLink size={14} />
+					{action === "sign_in"
+						? "Sign in to member portal"
+						: action === "setup_mfa"
+							? "Set up authenticator"
+							: "Verify authenticator"}{" "}
+					<ExternalLink size={14} />
 				</a>
+			)}
+			{opensNewTab && (
+				<p className="mt-2 text-xs text-slate-400">
+					Complete this step in the new tab, then return here and select Find my
+					matches again.
+				</p>
 			)}
 		</div>
 	);
@@ -296,12 +321,12 @@ export function SynergyProfilerApp() {
 	const [stage, setStage] = useState(0);
 	const [results, setResults] = useState<SynergyMatchResponse | null>(null);
 	const [error, setError] = useState("");
-	const [needsLogin, setNeedsLogin] = useState(false);
+	const [accessAction, setAccessAction] = useState<AccessAction>(null);
 
 	async function generateMatches(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
 		setError("");
-		setNeedsLogin(false);
+		setAccessAction(null);
 		setResults(null);
 		setBusy(true);
 		setStage(0);
@@ -338,7 +363,17 @@ export function SynergyProfilerApp() {
 						: "Matching is currently unavailable.";
 				// A 403 means the session exists but lacks member/MFA authorization;
 				// only a 401 should send the user back through email sign-in.
-				setNeedsLogin(response.status === 401);
+				const actionValue =
+					typeof data === "object" && data !== null && "action" in data
+						? memberAccessActionSchema.safeParse(data.action)
+						: null;
+				setAccessAction(
+					response.status === 401
+						? "sign_in"
+						: response.status === 403 && actionValue?.success
+							? actionValue.data
+							: null,
+				);
 				throw new Error(apiError);
 			}
 			const parsed = synergyMatchResponseSchema.safeParse(data);
@@ -763,7 +798,7 @@ export function SynergyProfilerApp() {
 								)}
 							</motion.section>
 						</AnimatePresence>
-						{error && <ErrorPanel text={error} onSignIn={needsLogin} />}
+						{error && <ErrorPanel text={error} action={accessAction} />}
 						<div className="mt-7 flex items-center justify-between border-t border-white/10 pt-4">
 							{step > 0 ? (
 								<button
