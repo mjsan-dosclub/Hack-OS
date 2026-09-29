@@ -11,6 +11,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { z } from "zod";
 import { AdminNavigation } from "@/components/admin/AdminNavigation";
+import { AdminSkeleton } from "@/components/admin/AdminSkeleton";
 
 const summarySchema = z.object({
 	events: z.object({
@@ -84,8 +85,8 @@ export function AdminDashboard() {
 
 	return (
 		<main className="os-standalone-screen admin-dashboard min-h-dvh bg-[#0e1118] px-4 py-6 text-white sm:px-8 sm:py-10">
-			<div className="mx-auto max-w-7xl">
-				<AdminNavigation active="overview" />
+			<AdminNavigation active="overview" />
+			<div className="mx-auto max-w-7xl lg:ml-[17rem]">
 				<div className="flex flex-wrap items-start justify-between gap-4">
 					<div>
 						<p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[.2em] text-cyan-200">
@@ -118,9 +119,7 @@ export function AdminDashboard() {
 					</p>
 				)}
 				{loading && !summary ? (
-					<p role="status" className="mt-8 text-sm text-white/60">
-						Loading club summary…
-					</p>
+					<AdminSkeleton kind="dashboard" />
 				) : (
 					summary && (
 						<>

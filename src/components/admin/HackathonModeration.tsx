@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { AdminNavigation } from "@/components/admin/AdminNavigation";
+import { AdminSkeleton } from "@/components/admin/AdminSkeleton";
 import {
 	type ApprovedEvent,
 	approvedEventsListSchema,
@@ -94,9 +95,11 @@ export function HackathonModeration() {
 	const [message, setMessage] = useState("");
 	const [isCreating, setIsCreating] = useState(false);
 	const [bannerUploading, setBannerUploading] = useState(false);
-	const [activeTab, setActiveTab] = useState<"approved" | "review">("approved");
+	const [activeTab, setActiveTab] = useState<"approved" | "review" | "create">(
+		"approved",
+	);
 	const [approvedEvents, setApprovedEvents] = useState<ApprovedEvent[]>([]);
-	const [approvedLoading, setApprovedLoading] = useState(false);
+	const [approvedLoading, setApprovedLoading] = useState(true);
 	const [approvedSearch, setApprovedSearch] = useState("");
 	const [approvedStatus, setApprovedStatus] = useState("all");
 	const [approvedFormat, setApprovedFormat] = useState("all");
@@ -237,6 +240,7 @@ export function HackathonModeration() {
 					throw new Error("The created event response is invalid.");
 				createdId = result.data.id;
 				setIsCreating(false);
+				setActiveTab("review");
 			}
 			await refresh(createdId);
 			setMessage(
@@ -298,7 +302,7 @@ export function HackathonModeration() {
 	}
 
 	function beginManualEntry() {
-		setActiveTab("review");
+		setActiveTab("create");
 		setDraft(manualDraft());
 		setIsCreating(true);
 		setError("");
@@ -307,6 +311,7 @@ export function HackathonModeration() {
 
 	function cancelManualEntry() {
 		setIsCreating(false);
+		setActiveTab("approved");
 		setDraft(events[0] ? editable(events[0]) : null);
 		setError("");
 		setMessage("");
@@ -314,8 +319,8 @@ export function HackathonModeration() {
 
 	return (
 		<main className="os-standalone-screen admin-dashboard min-h-dvh bg-[#0e1118] px-4 py-6 text-white sm:px-8 sm:py-10">
-			<div className="mx-auto max-w-7xl">
-				<AdminNavigation active="hackathons" />
+			<AdminNavigation active="hackathons" />
+			<div className="mx-auto max-w-7xl lg:ml-[17rem]">
 				<header className="mb-8 flex flex-wrap items-start justify-between gap-4">
 					<div>
 						<p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">
@@ -394,6 +399,15 @@ export function HackathonModeration() {
 					>
 						Scraped & manual review
 					</button>
+					<button
+						type="button"
+						role="tab"
+						aria-selected={activeTab === "create"}
+						onClick={beginManualEntry}
+						className={`border-b-2 px-4 py-3 text-sm font-semibold ${activeTab === "create" ? "border-emerald-300 text-emerald-200" : "border-transparent text-slate-400 hover:text-white"}`}
+					>
+						Add event
+					</button>
 				</div>
 				{activeTab === "approved" && (
 					<section role="tabpanel" aria-label="Approved events">
@@ -448,7 +462,12 @@ export function HackathonModeration() {
 								</select>
 							</label>
 						</div>
-						<div className="overflow-x-auto rounded-2xl border border-white/10">
+						{approvedLoading && approvedEvents.length === 0 && (
+							<AdminSkeleton kind="table" />
+						)}
+						<div
+							className={`overflow-x-auto rounded-2xl border border-white/10 ${approvedLoading && approvedEvents.length === 0 ? "hidden" : ""}`}
+						>
 							<table className="w-full min-w-[920px] border-collapse text-left text-sm">
 								<thead className="bg-white/[0.04] text-xs uppercase tracking-wide text-slate-400">
 									<tr>
@@ -564,12 +583,7 @@ export function HackathonModeration() {
 						</div>
 					</section>
 				)}
-				{activeTab === "review" && loading && (
-					<p className="mb-4 flex items-center gap-2 text-sm text-slate-400">
-						<LoaderCircle className="animate-spin" size={16} />
-						Loading review queue…
-					</p>
-				)}
+				{activeTab === "review" && loading && <AdminSkeleton kind="review" />}
 				{activeTab === "review" &&
 					!loading &&
 					events.length === 0 &&
@@ -579,33 +593,37 @@ export function HackathonModeration() {
 							scraper to start the review queue.
 						</p>
 					)}
-				{activeTab === "review" && draft && (
-					<div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
-						<nav aria-label="Events awaiting review" className="space-y-2">
-							{events.map((event) => (
-								<button
-									key={event.id}
-									type="button"
-									onClick={() => {
-										setDraft(editable(event));
-										setIsCreating(false);
-										setError("");
-										setMessage("");
-									}}
-									className={`w-full rounded-xl border p-4 text-left ${draft.id === event.id ? "border-emerald-300/40 bg-emerald-300/10" : "border-white/10 bg-white/[0.03]"}`}
-								>
-									<span className="block text-sm font-semibold">
-										{event.title}
-									</span>
-									<span className="mt-1 block text-xs text-slate-400">
-										{event.source} ·{" "}
-										{event.verified && event.published
-											? "Published"
-											: "Needs review"}
-									</span>
-								</button>
-							))}
-						</nav>
+				{(activeTab === "review" || activeTab === "create") && draft && (
+					<div
+						className={`grid gap-5 ${isCreating ? "" : "lg:grid-cols-[280px_minmax(0,1fr)]"}`}
+					>
+						{!isCreating && (
+							<nav aria-label="Events awaiting review" className="space-y-2">
+								{events.map((event) => (
+									<button
+										key={event.id}
+										type="button"
+										onClick={() => {
+											setDraft(editable(event));
+											setIsCreating(false);
+											setError("");
+											setMessage("");
+										}}
+										className={`w-full rounded-xl border p-4 text-left ${draft.id === event.id ? "border-emerald-300/40 bg-emerald-300/10" : "border-white/10 bg-white/[0.03]"}`}
+									>
+										<span className="block text-sm font-semibold">
+											{event.title}
+										</span>
+										<span className="mt-1 block text-xs text-slate-400">
+											{event.source} ·{" "}
+											{event.verified && event.published
+												? "Published"
+												: "Needs review"}
+										</span>
+									</button>
+								))}
+							</nav>
+						)}
 						<section className="rounded-2xl border border-white/10 bg-white/[0.035] p-5 sm:p-7">
 							<div className="mb-5 flex flex-wrap items-center justify-between gap-3">
 								<div>

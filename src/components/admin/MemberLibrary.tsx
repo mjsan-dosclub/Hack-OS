@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AdminNavigation } from "@/components/admin/AdminNavigation";
+import { AdminSkeleton } from "@/components/admin/AdminSkeleton";
 import {
 	type MemberLibraryFile,
 	memberLibraryListSchema,
@@ -168,8 +169,8 @@ export function MemberLibrary() {
 
 	return (
 		<main className="os-standalone-screen admin-dashboard min-h-dvh bg-[#0e1118] px-4 py-6 text-white sm:px-8 sm:py-10">
-			<div className="mx-auto max-w-7xl">
-				<AdminNavigation active="library" />
+			<AdminNavigation active="library" />
+			<div className="mx-auto max-w-7xl lg:ml-[17rem]">
 				<header className="mb-8 flex flex-wrap items-start justify-between gap-4">
 					<div>
 						<p className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-emerald-300">
@@ -324,10 +325,7 @@ export function MemberLibrary() {
 						</button>
 					</div>
 					{loading ? (
-						<div className="rounded-2xl border border-white/10 p-8 text-center text-sm text-slate-500">
-							<LoaderCircle className="mx-auto mb-2 animate-spin" size={20} />
-							Loading the library…
-						</div>
+						<AdminSkeleton kind="library" />
 					) : files.length === 0 ? (
 						<div className="rounded-2xl border border-dashed border-white/15 p-8 text-center text-sm text-slate-500">
 							No files yet. Add a workbook, CSV, or notes file to start building
