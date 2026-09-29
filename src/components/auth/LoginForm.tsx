@@ -134,23 +134,23 @@ export default function LoginPage() {
 									className="block text-sm text-slate-300"
 									htmlFor="email-code"
 								>
-									6-digit email code
+									8-digit email code
 								</label>
 								<input
 									id="email-code"
 									inputMode="numeric"
 									autoComplete="one-time-code"
-									pattern="[0-9]{6}"
-									maxLength={6}
+									pattern="[0-9]{8}"
+									maxLength={8}
 									required
 									value={token}
 									onChange={(event) =>
 										setToken(
-											event.currentTarget.value.replace(/\D/g, "").slice(0, 6),
+											event.currentTarget.value.replace(/\D/g, "").slice(0, 8),
 										)
 									}
 									className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3.5 font-mono tracking-[0.35em] outline-none focus:border-cyan-200/50"
-									placeholder="000000"
+									placeholder="00000000"
 								/>
 							</>
 						)}

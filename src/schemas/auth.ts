@@ -18,7 +18,7 @@ export const emailOtpVerifySchema = z
 		token: z
 			.string()
 			.trim()
-			.regex(/^\d{6}$/, "Enter the 6-digit code."),
+			.regex(/^\d{8}$/, "Enter the 8-digit email code."),
 	})
 	.strict();
 
