@@ -14,12 +14,13 @@ import { jarvisLabsConfigSchema } from "@/schemas/ideator";
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
 
-// Keep common responses quick while leaving room for the architecture spec.
+// Keep completion time bounded. Architecture gets the largest budget because it
+// must include a diagram and concrete API/data contracts.
 const MAX_OUTPUT_TOKENS: Record<CopilotMode, number> = {
-	brainstorm: 1_400,
-	architecture: 2_600,
-	evaluate: 1_400,
-	sprint: 1_400,
+	brainstorm: 900,
+	architecture: 1_800,
+	evaluate: 900,
+	sprint: 1_000,
 };
 
 type ProviderName = "jarvislabs";
@@ -123,6 +124,8 @@ export async function POST(request: Request): Promise<Response> {
 	}
 
 	const { mode, context, team, messages } = parsed.data;
+	const requestStartedAt = Date.now();
+	let firstTokenLogged = false;
 	const system = [
 		COPILOT_SYSTEM_PROMPT,
 		`Current task mode: ${mode}.\n${MODE_PROMPTS[mode]}`,
@@ -141,6 +144,29 @@ export async function POST(request: Request): Promise<Response> {
 				maxOutputTokens: MAX_OUTPUT_TOKENS[mode],
 				maxRetries: 0,
 				temperature: 0.5,
+				onChunk: ({ chunk }) => {
+					if (firstTokenLogged || chunk.type !== "text-delta") return;
+					firstTokenLogged = true;
+					console.info(
+						JSON.stringify({
+							event: "copilot_first_token",
+							provider: candidate.name,
+							mode,
+							latencyMs: Date.now() - requestStartedAt,
+						}),
+					);
+				},
+				onFinish: ({ totalUsage }) => {
+					console.info(
+						JSON.stringify({
+							event: "copilot_stream_complete",
+							provider: candidate.name,
+							mode,
+							latencyMs: Date.now() - requestStartedAt,
+							outputTokens: totalUsage.outputTokens,
+						}),
+					);
+				},
 				onError: ({ error }) => logProviderFailure(candidate.name, error),
 			});
 			// Return the HTTP stream immediately. Waiting for the model's first token
