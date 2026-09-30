@@ -17,6 +17,7 @@ export interface HackathonCluster {
 	latitude: number;
 	longitude: number;
 	events: Hackathon[];
+	approximateEventIds: string[];
 }
 export interface MapFocus {
 	latitude: number;
@@ -122,6 +123,11 @@ function ClusterMarker({
 								{event.prizeCurrency} {event.totalPrizeValue.toLocaleString()}{" "}
 								in prizes
 							</span>
+							{cluster.approximateEventIds.includes(event.id) && (
+								<span className="block text-[10px] text-slate-500">
+									Approximate city-centre pin
+								</span>
+							)}
 							<button
 								type="button"
 								onClick={() => {
@@ -161,6 +167,7 @@ export function MapCanvas({
 			<TileLayer
 				attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 				url="/api/map-tiles/{z}/{x}/{y}"
+				maxZoom={19}
 			/>
 			{userLocation && (
 				<>

@@ -6,6 +6,7 @@ import {
 	type HackathonInsert,
 } from "../../schemas/hackathon.ts";
 import { jarvisLabsConfigSchema } from "../../schemas/ideator.ts";
+import { findIndiaCityLocation } from "../geo/indiaCities.ts";
 import type { RawHackathonData } from "./types.ts";
 
 const parsedHintsSchema = z
@@ -101,6 +102,17 @@ function normalizedPlace(text: string): {
 } {
 	if (/online|virtual|remote|global|anywhere/i.test(text))
 		return { city: null, country: null, coordinates: null };
+	const knownCity = findIndiaCityLocation(text);
+	if (knownCity) {
+		return {
+			city: knownCity.city,
+			country: "India",
+			coordinates: {
+				latitude: knownCity.latitude,
+				longitude: knownCity.longitude,
+			},
+		};
+	}
 	const lower = text.toLowerCase();
 	for (const [key, place] of Object.entries(INDIA_CITIES)) {
 		if (

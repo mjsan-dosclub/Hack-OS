@@ -13,6 +13,7 @@ import {
 import { HackathonDetailDrawer } from "@/components/apps/radar/HackathonDetailDrawer";
 import { MapEventCard } from "@/components/apps/map/MapEventCard";
 import { usePublishedHackathons } from "@/hooks/usePublishedHackathons";
+import { approximateIndianVenueCoordinates } from "@/lib/geo/indiaCities";
 import { useWindowManager } from "@/stores/useWindowManager";
 import type { Hackathon } from "@/types/hackathon";
 import type {
@@ -77,14 +78,26 @@ function inRegion(event: Hackathon, region: Region): boolean {
 function clusterEvents(events: Hackathon[]): HackathonCluster[] {
 	const clusters = new Map<string, HackathonCluster>();
 	for (const event of events) {
-		const point = event.coordinates;
+		const point =
+			event.coordinates ??
+			approximateIndianVenueCoordinates(event.venueCity, event.venueCountry);
 		if (!point) continue;
 		const latitude = Math.round(point.latitude * 20) / 20;
 		const longitude = Math.round(point.longitude * 20) / 20;
 		const key = `${latitude.toFixed(2)},${longitude.toFixed(2)}`;
 		const current = clusters.get(key);
-		if (current) current.events.push(event);
-		else clusters.set(key, { key, latitude, longitude, events: [event] });
+		if (current) {
+			current.events.push(event);
+			if (!event.coordinates) current.approximateEventIds.push(event.id);
+		} else {
+			clusters.set(key, {
+				key,
+				latitude,
+				longitude,
+				events: [event],
+				approximateEventIds: event.coordinates ? [] : [event.id],
+			});
+		}
 	}
 	return [...clusters.values()];
 }
@@ -177,10 +190,13 @@ export function HackamapsApp() {
 
 	function selectEvent(event: Hackathon) {
 		setSelectedEvent(event);
-		if (event.coordinates) {
+		const point =
+			event.coordinates ??
+			approximateIndianVenueCoordinates(event.venueCity, event.venueCountry);
+		if (point) {
 			setFocus({
-				latitude: event.coordinates.latitude,
-				longitude: event.coordinates.longitude,
+				latitude: point.latitude,
+				longitude: point.longitude,
 				zoom: 10,
 			});
 		}
