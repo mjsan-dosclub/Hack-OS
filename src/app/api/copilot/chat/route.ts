@@ -51,6 +51,14 @@ function redactSecrets(message: string): string {
 	return safeMessage.slice(0, 500);
 }
 
+function providerStatusCode(error: unknown): number | null {
+	if (APICallError.isInstance(error) && error.statusCode !== undefined)
+		return error.statusCode;
+	if (!(error instanceof Error)) return null;
+	const match = error.message.match(/status_code.{0,5}(\d{3})/i);
+	return match?.[1] ? Number(match[1]) : null;
+}
+
 function logProviderFailure(provider: ProviderName, error: unknown): void {
 	const detail =
 		error instanceof Error ? error.message : "Unknown provider error.";
@@ -58,27 +66,24 @@ function logProviderFailure(provider: ProviderName, error: unknown): void {
 		JSON.stringify({
 			event: "copilot_provider_error",
 			provider,
-			statusCode: APICallError.isInstance(error) ? error.statusCode : null,
+			statusCode: providerStatusCode(error),
 			detail: redactSecrets(detail),
 		}),
 	);
 }
 
 function providerFailureResponse(error: unknown): Response {
-	if (
-		APICallError.isInstance(error) &&
-		(error.statusCode === 401 || error.statusCode === 403)
-	) {
+	const statusCode = providerStatusCode(error);
+	if (statusCode === 401 || statusCode === 403) {
 		return Response.json(
 			{ error: "JarvisLabs rejected its server-side API key." },
 			{ status: 502 },
 		);
 	}
 	if (
-		APICallError.isInstance(error) &&
-		(error.statusCode === 408 ||
-			error.statusCode === 429 ||
-			(error.statusCode !== undefined && error.statusCode >= 500))
+		statusCode === 408 ||
+		statusCode === 429 ||
+		(statusCode !== null && statusCode >= 500)
 	) {
 		return Response.json(
 			{
