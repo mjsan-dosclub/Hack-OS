@@ -41,6 +41,22 @@ const MODES: readonly { id: CopilotMode; label: string }[] = [
 interface ChatRow extends CopilotMessage {
 	id: string;
 	evaluation?: IdeaEvaluation;
+	responseSeconds?: number;
+}
+
+const WAITING_GUIDANCE = [
+	"Write the problem in one sentence. If the team cannot agree on it, pause before choosing technology.",
+	"Choose one small user journey you can demonstrate end to end. A finished slice teaches more than five unfinished features.",
+	"Split ownership across problem research, building, testing, and the pitch. Roles can overlap, but every task needs an owner.",
+	"Read the official judging criteria and connect each requirement to something judges can see in your demo.",
+	"Keep time for testing and a rehearsal. Explain the problem, show the working part, then share what you learned.",
+	"A certificate is a record of participation. Your strongest outcome is a skill, useful feedback, and a project you can explain honestly.",
+] as const;
+
+function formatDuration(totalSeconds: number): string {
+	const minutes = Math.floor(totalSeconds / 60);
+	const seconds = totalSeconds % 60;
+	return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
 }
 
 const fieldClass =
@@ -140,6 +156,7 @@ export function CopilotApp() {
 	const [input, setInput] = useState("");
 	const [messages, setMessages] = useState<ChatRow[]>([]);
 	const [busy, setBusy] = useState(false);
+	const [elapsedSeconds, setElapsedSeconds] = useState(0);
 	const [error, setError] = useState("");
 	const [streamingText, setStreamingText] = useState("");
 	const [latestAssistant, setLatestAssistant] = useState("");
@@ -147,6 +164,17 @@ export function CopilotApp() {
 	const [copiedPitch, setCopiedPitch] = useState(false);
 	const transcriptRef = useRef<HTMLDivElement>(null);
 	const abortRef = useRef<AbortController | null>(null);
+	const requestStartedAtRef = useRef<number | null>(null);
+
+	useEffect(() => {
+		if (!busy) return;
+		const timer = window.setInterval(() => {
+			const startedAt = requestStartedAtRef.current;
+			if (startedAt !== null)
+				setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+		}, 1000);
+		return () => window.clearInterval(timer);
+	}, [busy]);
 
 	useEffect(() => {
 		if (messages.length === 0 && !streamingText && !busy) return;
@@ -189,6 +217,9 @@ export function CopilotApp() {
 			{ role: "user" as const, content: text },
 		].slice(-8);
 		setMessages((current) => [...current, userMessage]);
+		const requestStartedAt = Date.now();
+		requestStartedAtRef.current = requestStartedAt;
+		setElapsedSeconds(0);
 		setBusy(true);
 
 		const controller = new AbortController();
@@ -236,6 +267,7 @@ export function CopilotApp() {
 						role: "assistant",
 						content: summary,
 						evaluation,
+						responseSeconds: Math.floor((Date.now() - requestStartedAt) / 1000),
 					},
 				]);
 				setLatestAssistant(summary);
@@ -299,7 +331,12 @@ export function CopilotApp() {
 			if (activeMode === "sprint") recordFeatureUse("project_plan");
 			setMessages((current) => [
 				...current,
-				{ id: crypto.randomUUID(), role: "assistant", content: fullText },
+				{
+					id: crypto.randomUUID(),
+					role: "assistant",
+					content: fullText,
+					responseSeconds: Math.floor((Date.now() - requestStartedAt) / 1000),
+				},
 			]);
 			setStreamingText("");
 		} catch (requestError: unknown) {
@@ -312,6 +349,7 @@ export function CopilotApp() {
 			);
 		} finally {
 			abortRef.current = null;
+			requestStartedAtRef.current = null;
 			setBusy(false);
 			setStreamingText("");
 		}
@@ -609,6 +647,11 @@ export function CopilotApp() {
 								<p className="mb-1.5 text-[8px] font-semibold uppercase tracking-widest text-white/35">
 									{message.role === "user" ? "You" : "Co-Pilot"}
 								</p>
+								{message.responseSeconds !== undefined && (
+									<p className="mb-1.5 font-mono text-xs text-cyan-100/45">
+										Worked for {formatDuration(message.responseSeconds)}
+									</p>
+								)}
 								{message.role === "assistant" ? (
 									<MarkdownContent content={message.content} copyable />
 								) : (
@@ -643,9 +686,42 @@ export function CopilotApp() {
 							</article>
 						)}
 						{busy && !streamingText && (
-							<p className="flex items-center gap-2 text-[10px] text-white/45">
-								<LoaderCircle className="size-3.5 animate-spin" />
-								Working from your event and team context…
+							<section
+								className="rounded-xl border border-cyan-100/10 bg-cyan-100/[0.025] p-3"
+								aria-label="Co-Pilot request progress and hackathon preparation tip"
+							>
+								<div
+									role="status"
+									className="flex items-center gap-2 text-xs text-white/60"
+								>
+									<LoaderCircle className="size-3.5 animate-spin text-cyan-100" />
+									<span>Waiting for the first response</span>
+									<span className="ml-auto whitespace-nowrap font-mono text-xs text-cyan-100/70">
+										Working · {formatDuration(elapsedSeconds)}
+									</span>
+								</div>
+								<div className="mt-2 border-t border-white/[0.06] pt-2">
+									<p className="text-xs font-semibold uppercase tracking-wider text-fuchsia-100/65">
+										Hackathon field note
+									</p>
+									<p className="mt-1 text-xs leading-5 text-white/55">
+										{
+											WAITING_GUIDANCE[
+												Math.floor(elapsedSeconds / 12) %
+													WAITING_GUIDANCE.length
+											]
+										}
+									</p>
+								</div>
+							</section>
+						)}
+						{busy && streamingText && (
+							<p
+								role="status"
+								className="flex items-center gap-2 text-xs text-cyan-100/55"
+							>
+								<LoaderCircle className="size-3 animate-spin" />
+								Receiving response · {formatDuration(elapsedSeconds)}
 							</p>
 						)}
 						{error && (
