@@ -293,7 +293,7 @@ export function CopilotApp() {
 			fullText += decoder.decode();
 			if (!fullText.trim())
 				throw new Error(
-					"The model returned an empty response. Try a more specific prompt.",
+					"The AI service returned no text. It may be busy or restarting. Please retry shortly; if this continues, contact a club admin.",
 				);
 			setLatestAssistant(fullText);
 			if (activeMode === "sprint") recordFeatureUse("project_plan");
