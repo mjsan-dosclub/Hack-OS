@@ -2,7 +2,7 @@
 
 import { ArrowLeft, LoaderCircle, Mail, ShieldCheck } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
 	emailOtpRequestErrorSchema,
@@ -28,7 +28,14 @@ export default function LoginPage() {
 	const [busy, setBusy] = useState(false);
 	const [message, setMessage] = useState("");
 	const [error, setError] = useState("");
+	const emailInputRef = useRef<HTMLInputElement>(null);
+	const codeInputRef = useRef<HTMLInputElement>(null);
 	const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+
+	useEffect(() => {
+		if (codeSent) codeInputRef.current?.focus();
+		else emailInputRef.current?.focus();
+	}, [codeSent]);
 
 	async function requestCode(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -163,6 +170,7 @@ export default function LoginPage() {
 							<Mail size={17} className="text-slate-500" />
 							<input
 								id="member-email"
+								ref={emailInputRef}
 								type="email"
 								autoComplete="email"
 								required
@@ -182,6 +190,7 @@ export default function LoginPage() {
 									8-digit email code
 								</label>
 								<input
+									ref={codeInputRef}
 									id="email-code"
 									inputMode="numeric"
 									autoComplete="one-time-code"
