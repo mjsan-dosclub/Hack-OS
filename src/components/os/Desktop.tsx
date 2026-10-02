@@ -116,15 +116,26 @@ export function Desktop({ initialApp }: { initialApp?: AppKey } = {}) {
 			}
 			if (event.key === "Escape") {
 				if (paletteOpen) {
+					event.preventDefault();
 					setPaletteOpen(false);
 					return;
 				}
 				const target = event.target;
+				const isInsideWindow =
+					target instanceof HTMLElement &&
+					target.closest(".os-window-frame") !== null;
 				const isEditing =
 					target instanceof HTMLElement &&
 					(target.isContentEditable ||
 						["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
-				if (!isEditing && activeWindowId) minimizeWindow(activeWindowId);
+				if (
+					!event.isComposing &&
+					(!isEditing || isInsideWindow) &&
+					activeWindowId
+				) {
+					event.preventDefault();
+					minimizeWindow(activeWindowId);
+				}
 			}
 		}
 		window.addEventListener("keydown", handleShortcut);
