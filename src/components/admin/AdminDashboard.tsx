@@ -9,44 +9,11 @@ import {
 	UsersRound,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { z } from "zod";
 import { AdminNavigation } from "@/components/admin/AdminNavigation";
 import { AdminSkeleton } from "@/components/admin/AdminSkeleton";
+import { type AdminSummary, adminSummarySchema } from "@/schemas/adminSummary";
 
-const summarySchema = z.object({
-	events: z.object({
-		total: z.number(),
-		upcoming: z.number(),
-		open: z.number(),
-		closed: z.number(),
-		ended: z.number(),
-	}),
-	categories: z.array(z.object({ name: z.string(), total: z.number() })),
-	locations: z.array(z.object({ name: z.string(), total: z.number() })),
-	colleges: z.array(z.object({ name: z.string(), total: z.number() })),
-	members: z.object({
-		total: z.number(),
-		verified: z.number(),
-		current: z.number(),
-		alumni: z.number(),
-		mentors: z.number(),
-	}),
-	activity: z.object({
-		teammateMatches: z.number(),
-		projectPlans: z.number(),
-		topMembers: z.array(
-			z.object({
-				userId: z.string(),
-				name: z.string(),
-				email: z.string(),
-				teammateMatches: z.number(),
-				projectPlans: z.number(),
-				lastUsedAt: z.string().nullable(),
-			}),
-		),
-	}),
-});
-type Summary = z.infer<typeof summarySchema>;
+type Summary = AdminSummary;
 
 function dateLabel(value: string | null): string {
 	if (!value) return "—";
@@ -70,16 +37,19 @@ export function AdminDashboard() {
 			});
 			const payload: unknown = await response.json();
 			if (!response.ok) throw new Error("Admin summary could not be loaded.");
-			const parsed = summarySchema.safeParse(payload);
+			const parsed = adminSummarySchema.safeParse(payload);
 			if (!parsed.success) throw new Error("The summary response was invalid.");
 			setSummary(parsed.data);
 			setError("");
 		} catch (caught: unknown) {
 			const timedOut =
-				caught instanceof Error && caught.name === "TimeoutError";
+				caught instanceof Error &&
+				(caught.name === "TimeoutError" ||
+					caught.name === "AbortError" ||
+					caught.message === "Fetch is aborted");
 			setError(
 				timedOut
-					? "The dashboard request timed out. Check the connection and retry."
+					? "The dashboard is taking longer than expected. Its database query timed out; please retry in a moment."
 					: caught instanceof Error
 						? caught.message
 						: "Summary unavailable.",
