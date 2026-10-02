@@ -14,12 +14,13 @@ import {
 	Sparkles,
 	UsersRound,
 } from "lucide-react";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { memberAccessActionSchema } from "@/schemas/auth";
 import {
 	type SynergyMatchResponse,
 	synergyMatchResponseSchema,
 } from "@/schemas/synergy";
+import { useWindowManager } from "@/stores/useWindowManager";
 
 const STEPS = ["Goals", "Skills & roles", "Travel", "Matches"] as const;
 const MATCH_STAGES = [
@@ -303,6 +304,7 @@ function MatchResults({ results }: { results: SynergyMatchResponse }) {
 }
 
 export function SynergyProfilerApp() {
+	const activeWindowId = useWindowManager((state) => state.activeWindowId);
 	const [step, setStep] = useState(0);
 	const [fieldOfInterest, setFieldOfInterest] = useState("");
 	const [concerns, setConcerns] = useState("");
@@ -322,6 +324,20 @@ export function SynergyProfilerApp() {
 	const [results, setResults] = useState<SynergyMatchResponse | null>(null);
 	const [error, setError] = useState("");
 	const [accessAction, setAccessAction] = useState<AccessAction>(null);
+
+	useEffect(() => {
+		if (activeWindowId !== "synergy") return;
+		const focusTargetIds = [
+			"synergy-interest",
+			"synergy-skills",
+			"synergy-city",
+			"synergy-ai-matching",
+		] as const;
+		const timer = window.setTimeout(() => {
+			document.getElementById(focusTargetIds[step])?.focus();
+		}, 200);
+		return () => window.clearTimeout(timer);
+	}, [activeWindowId, step]);
 
 	async function generateMatches(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -752,6 +768,7 @@ export function SynergyProfilerApp() {
 										</div>
 										<label className="mt-5 flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-black/10 p-4">
 											<input
+												id="synergy-ai-matching"
 												type="checkbox"
 												checked={allowAiMatching}
 												onChange={(event) =>

@@ -163,8 +163,21 @@ export function CopilotApp() {
 	const [pitchDraft, setPitchDraft] = useState("");
 	const [copiedPitch, setCopiedPitch] = useState(false);
 	const transcriptRef = useRef<HTMLDivElement>(null);
+	const messageInputRef = useRef<HTMLTextAreaElement>(null);
+	const pitchInputRef = useRef<HTMLTextAreaElement>(null);
 	const abortRef = useRef<AbortController | null>(null);
 	const requestStartedAtRef = useRef<number | null>(null);
+	const activeWindowId = useWindowManager((state) => state.activeWindowId);
+
+	useEffect(() => {
+		if (activeWindowId !== "copilot") return;
+		const frame = window.requestAnimationFrame(() => {
+			const input =
+				mode === "evaluate" ? pitchInputRef.current : messageInputRef.current;
+			input?.focus();
+		});
+		return () => window.cancelAnimationFrame(frame);
+	}, [activeWindowId, mode]);
 
 	useEffect(() => {
 		if (!busy) return;
@@ -756,6 +769,7 @@ export function CopilotApp() {
 						</label>
 						<textarea
 							id="copilot-pitch"
+							ref={pitchInputRef}
 							value={pitchDraft}
 							onChange={(event) => setPitchDraft(event.target.value)}
 							maxLength={6000}
@@ -798,6 +812,7 @@ export function CopilotApp() {
 								</label>
 								<textarea
 									id="copilot-message"
+									ref={messageInputRef}
 									value={input}
 									onChange={(event) => setInput(event.target.value)}
 									onKeyDown={(event) => {
