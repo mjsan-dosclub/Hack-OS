@@ -3,7 +3,7 @@
 import { ArrowLeft, LoaderCircle, ShieldCheck } from "lucide-react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { totpCodeSchema } from "@/schemas/auth";
 
@@ -38,7 +38,16 @@ export function MfaChallenge({ mode }: { mode: MfaMode }) {
 	const [code, setCode] = useState("");
 	const [message, setMessage] = useState("");
 	const [error, setError] = useState("");
+	const codeInputRef = useRef<HTMLInputElement>(null);
 	const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+
+	useEffect(() => {
+		if (screen !== "ready") return;
+		const frame = window.requestAnimationFrame(() =>
+			codeInputRef.current?.focus(),
+		);
+		return () => window.cancelAnimationFrame(frame);
+	}, [screen]);
 
 	useEffect(() => {
 		let active = true;
@@ -255,6 +264,7 @@ export function MfaChallenge({ mode }: { mode: MfaMode }) {
 							</label>
 							<input
 								id="totp-code"
+								ref={codeInputRef}
 								inputMode="numeric"
 								autoComplete="one-time-code"
 								pattern="[0-9]{6}"
