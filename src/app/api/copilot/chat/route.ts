@@ -54,6 +54,7 @@ export async function POST(request: Request): Promise<Response> {
 	const { mode, context, team, messages } = parsed.data;
 	const requestStartedAt = Date.now();
 	let firstTokenLogged = false;
+	let providerFailed = false;
 	const system = [
 		COPILOT_SYSTEM_PROMPT,
 		`Current task mode: ${mode}.\n${MODE_PROMPTS[mode]}`,
@@ -81,7 +82,21 @@ export async function POST(request: Request): Promise<Response> {
 					}),
 				);
 			},
-			onFinish: ({ totalUsage }) => {
+			onFinish: ({ finishReason, text, totalUsage }) => {
+				if (providerFailed || finishReason === "error" || !text.trim()) {
+					console.warn(
+						JSON.stringify({
+							event: "copilot_stream_empty",
+							provider: "jarvislabs",
+							mode,
+							latencyMs: Date.now() - requestStartedAt,
+							outputTokens: totalUsage.outputTokens,
+							finishReason,
+							providerFailed,
+						}),
+					);
+					return;
+				}
 				console.info(
 					JSON.stringify({
 						event: "copilot_stream_complete",
@@ -92,7 +107,10 @@ export async function POST(request: Request): Promise<Response> {
 					}),
 				);
 			},
-			onError: ({ error }) => logJarvisFailure("copilot.chat", error),
+			onError: ({ error }) => {
+				providerFailed = true;
+				logJarvisFailure("copilot.chat", error);
+			},
 		});
 		// Return the HTTP stream immediately. Waiting for the model's first token
 		// here can exceed Vercel Edge's response-start deadline and surface as 504.

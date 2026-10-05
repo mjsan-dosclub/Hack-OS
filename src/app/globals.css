@@ -96,6 +96,7 @@ html[data-os-font="largest"] [class~="text-[20px]"] { font-size: calc(20px * var
 .desktop-root[data-theme="light"] .os-window-frame [class*="text-violet-"] { color: #6d28d9 !important; }
 .desktop-root[data-theme="light"] .os-window-frame [class*="text-fuchsia-"] { color: #a21caf !important; }
 .desktop-root[data-theme="light"] .os-window-frame [class*="text-amber-"] { color: #a16207 !important; }
+.desktop-root[data-theme="light"] .os-window-frame .copilot-error { border-color: #fda4af !important; background-color: #fff1f2 !important; color: #9f1239 !important; }
 .desktop-root[data-theme="light"] .os-window-frame input:not([type="checkbox"]):not([type="radio"]),
 .desktop-root[data-theme="light"] .os-window-frame textarea,
 .desktop-root[data-theme="light"] .os-window-frame select { color: #1e293b; color-scheme: light; }

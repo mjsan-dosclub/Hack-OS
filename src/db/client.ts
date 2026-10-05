@@ -7,7 +7,12 @@ function createDatabase() {
 	const databaseUrl = process.env.DATABASE_URL;
 	if (!databaseUrl)
 		throw new Error("DATABASE_URL is required for database access.");
-	const client = postgres(databaseUrl, { prepare: false, max: 5 });
+	const client = postgres(databaseUrl, {
+		prepare: false,
+		max: 5,
+		connect_timeout: 10,
+		connection: { statement_timeout: 15_000, lock_timeout: 5_000 },
+	});
 	return drizzle(client, { schema });
 }
 
@@ -20,7 +25,12 @@ export function getDatabase(): Database {
 	if (!database) {
 		const url = process.env.DATABASE_URL;
 		if (!url) throw new Error("DATABASE_URL is required for database access.");
-		const client = postgres(url, { prepare: false, max: 5 });
+		const client = postgres(url, {
+			prepare: false,
+			max: 5,
+			connect_timeout: 10,
+			connection: { statement_timeout: 15_000, lock_timeout: 5_000 },
+		});
 		closeClient = () => client.end({ timeout: 5 });
 		database = drizzle(client, { schema });
 	}

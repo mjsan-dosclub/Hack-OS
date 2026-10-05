@@ -1,220 +1,170 @@
-import { and, count, desc, eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { getDatabase } from "@/db/client";
-import {
-	clubMembers,
-	hackathons,
-	hackathonTagLinks,
-	hackathonTags,
-	memberActivityEvents,
-} from "@/db/schema";
 import {
 	MemberAccessError,
 	requireAdminMember,
 } from "@/lib/auth/requireVerifiedMember";
+import { adminSummarySchema } from "@/schemas/adminSummary";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 /** Protected aggregates for the admin home; no student profile fields are returned. */
 export async function GET(): Promise<Response> {
+	const startedAt = Date.now();
 	try {
 		await requireAdminMember();
 		const db = getDatabase();
-		const [events, eventCategories, locations, roster, colleges, usage, users] =
-			await Promise.all([
-				db
-					.select({
-						id: hackathons.id,
-						status: hackathons.applicationStatus,
-						endDate: hackathons.endDate,
-					})
-					.from(hackathons)
-					.where(
-						and(eq(hackathons.published, true), eq(hackathons.verified, true)),
-					),
-				db
-					.select({ category: hackathonTags.name, total: count() })
-					.from(hackathonTagLinks)
-					.innerJoin(
-						hackathonTags,
-						eq(hackathonTags.id, hackathonTagLinks.tagId),
+		// One SQL round trip avoids opening seven concurrent reads for one dashboard.
+		// Every result remains an aggregate; only the admin-only activity table returns
+		// names/emails, and those are limited to the 25 most active linked members.
+		const result = await db.execute(sql`
+			WITH published_events AS MATERIALIZED (
+				SELECT id, application_status, end_date, venue_city, venue_country, format
+				FROM public.hackathons
+				WHERE published = true AND verified = true
+			),
+			category_totals AS (
+				SELECT tag.name, count(*)::integer AS total
+				FROM public.hackathon_tag_links AS link
+				JOIN public.hackathon_tags AS tag ON tag.id = link.tag_id
+				JOIN published_events AS published_event
+					ON published_event.id = link.hackathon_id
+				GROUP BY tag.name
+				ORDER BY total DESC, tag.name ASC
+				LIMIT 12
+			),
+			location_totals AS (
+				SELECT
+					coalesce(
+						nullif(concat_ws(', ', published_event.venue_city, published_event.venue_country), ''),
+						CASE WHEN published_event.format = 'online' THEN 'Online' ELSE 'Location not listed' END
+					) AS name,
+					count(*)::integer AS total
+				FROM published_events AS published_event
+				GROUP BY 1
+				ORDER BY total DESC, name ASC
+				LIMIT 12
+			),
+			college_totals AS (
+				SELECT college_name AS name, count(*)::integer AS total
+				FROM public.club_members
+				GROUP BY college_name
+				ORDER BY total DESC, college_name ASC
+				LIMIT 12
+			),
+			activity_totals AS (
+				SELECT
+					count(*) FILTER (WHERE activity = 'teammate_match')::integer AS teammate_matches,
+					count(*) FILTER (WHERE activity = 'project_plan')::integer AS project_plans
+				FROM public.member_activity_events
+			),
+			member_activity AS (
+				SELECT
+					member.auth_user_id AS user_id,
+					member.full_name AS name,
+					member.email,
+					count(*) FILTER (WHERE activity.activity = 'teammate_match')::integer AS teammate_matches,
+					count(*) FILTER (WHERE activity.activity = 'project_plan')::integer AS project_plans,
+					to_char(
+						max(activity.created_at) AT TIME ZONE 'UTC',
+						'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'
+					) AS last_used_at
+				FROM public.member_activity_events AS activity
+				JOIN public.club_members AS member
+					ON member.auth_user_id = activity.user_id
+				GROUP BY member.auth_user_id, member.full_name, member.email
+				ORDER BY count(*) DESC, member.full_name ASC
+				LIMIT 25
+			)
+			SELECT jsonb_build_object(
+				'events', (
+					SELECT jsonb_build_object(
+						'total', count(*)::integer,
+						'upcoming', count(*) FILTER (
+							WHERE application_status = 'upcoming' AND end_date >= now()
+						)::integer,
+						'open', count(*) FILTER (
+							WHERE application_status = 'open' AND end_date >= now()
+						)::integer,
+						'closed', count(*) FILTER (
+							WHERE application_status = 'closed' AND end_date >= now()
+						)::integer,
+						'ended', count(*) FILTER (
+							WHERE application_status = 'ended' OR end_date < now()
+						)::integer
 					)
-					.innerJoin(
-						hackathons,
-						eq(hackathons.id, hackathonTagLinks.hackathonId),
+					FROM published_events
+				),
+				'categories', coalesce(
+					(SELECT jsonb_agg(jsonb_build_object('name', name, 'total', total)) FROM category_totals),
+					'[]'::jsonb
+				),
+				'locations', coalesce(
+					(SELECT jsonb_agg(jsonb_build_object('name', name, 'total', total)) FROM location_totals),
+					'[]'::jsonb
+				),
+				'colleges', coalesce(
+					(SELECT jsonb_agg(jsonb_build_object('name', name, 'total', total)) FROM college_totals),
+					'[]'::jsonb
+				),
+				'members', (
+					SELECT jsonb_build_object(
+						'total', count(*)::integer,
+						'verified', count(*) FILTER (WHERE verified_member)::integer,
+						'current', count(*) FILTER (WHERE membership_status = 'current')::integer,
+						'alumni', count(*) FILTER (WHERE membership_status = 'alumnus')::integer,
+						'mentors', count(*) FILTER (WHERE membership_status = 'mentor')::integer
 					)
-					.where(
-						and(eq(hackathons.published, true), eq(hackathons.verified, true)),
+					FROM public.club_members
+				),
+				'activity', jsonb_build_object(
+					'teammateMatches', (SELECT teammate_matches FROM activity_totals),
+					'projectPlans', (SELECT project_plans FROM activity_totals),
+					'topMembers', coalesce(
+						(
+							SELECT jsonb_agg(jsonb_build_object(
+								'userId', user_id,
+								'name', name,
+								'email', email,
+								'teammateMatches', teammate_matches,
+								'projectPlans', project_plans,
+								'lastUsedAt', last_used_at
+							) ORDER BY teammate_matches + project_plans DESC, name ASC)
+							FROM member_activity
+						),
+						'[]'::jsonb
 					)
-					.groupBy(hackathonTags.name)
-					.orderBy(desc(count()))
-					.limit(12),
-				db
-					.select({
-						city: hackathons.venueCity,
-						country: hackathons.venueCountry,
-						format: hackathons.format,
-						total: count(),
-					})
-					.from(hackathons)
-					.where(
-						and(eq(hackathons.published, true), eq(hackathons.verified, true)),
-					)
-					.groupBy(
-						hackathons.venueCity,
-						hackathons.venueCountry,
-						hackathons.format,
-					)
-					.orderBy(desc(count()))
-					.limit(12),
-				db
-					.select({
-						total: count(),
-						verified: sql<number>`count(*) filter (where ${clubMembers.verifiedMember})`,
-						current: sql<number>`count(*) filter (where ${clubMembers.membershipStatus} = 'current')`,
-						alumni: sql<number>`count(*) filter (where ${clubMembers.membershipStatus} = 'alumnus')`,
-						mentors: sql<number>`count(*) filter (where ${clubMembers.membershipStatus} = 'mentor')`,
-					})
-					.from(clubMembers),
-				db
-					.select({ name: clubMembers.collegeName, total: count() })
-					.from(clubMembers)
-					.groupBy(clubMembers.collegeName)
-					.orderBy(desc(count()))
-					.limit(12),
-				db
-					.select({
-						activity: memberActivityEvents.activity,
-						total: count(),
-					})
-					.from(memberActivityEvents)
-					.groupBy(memberActivityEvents.activity),
-				db
-					.select({
-						userId: memberActivityEvents.userId,
-						activity: memberActivityEvents.activity,
-						uses: count(),
-						lastUsedAt: sql<string>`max(${memberActivityEvents.createdAt})`,
-						name: clubMembers.fullName,
-						email: clubMembers.email,
-					})
-					.from(memberActivityEvents)
-					.innerJoin(
-						clubMembers,
-						eq(clubMembers.authUserId, memberActivityEvents.userId),
-					)
-					.groupBy(
-						memberActivityEvents.userId,
-						memberActivityEvents.activity,
-						clubMembers.fullName,
-						clubMembers.email,
-					)
-					.orderBy(desc(count()))
-					.limit(100),
-			]);
-
-		const now = Date.now();
-		const eventSummary = {
-			total: events.length,
-			upcoming: events.filter(
-				(event) =>
-					event.status === "upcoming" && event.endDate.getTime() >= now,
-			).length,
-			open: events.filter(
-				(event) => event.status === "open" && event.endDate.getTime() >= now,
-			).length,
-			closed: events.filter(
-				(event) => event.status === "closed" && event.endDate.getTime() >= now,
-			).length,
-			ended: events.filter(
-				(event) => event.status === "ended" || event.endDate.getTime() < now,
-			).length,
-		};
-		return NextResponse.json(
-			{
-				events: eventSummary,
-				categories: eventCategories.map((row) => ({
-					name: row.category,
-					total: Number(row.total),
-				})),
-				locations: locations.map((row) => ({
-					name:
-						[row.city, row.country].filter(Boolean).join(", ") ||
-						(row.format === "online" ? "Online" : "Location not listed"),
-					total: Number(row.total),
-				})),
-				colleges: colleges.map((row) => ({
-					name: row.name,
-					total: Number(row.total),
-				})),
-				members: {
-					total: Number(roster[0]?.total ?? 0),
-					verified: Number(roster[0]?.verified ?? 0),
-					current: Number(roster[0]?.current ?? 0),
-					alumni: Number(roster[0]?.alumni ?? 0),
-					mentors: Number(roster[0]?.mentors ?? 0),
+				)
+			) AS summary
+		`);
+		const row = result[0];
+		const parsed = adminSummarySchema.safeParse(row?.summary);
+		if (!parsed.success) {
+			console.error(
+				"[admin-summary] Summary result failed schema validation.",
+				{
+					issueCount: parsed.error.issues.length,
 				},
-				activity: {
-					teammateMatches: Number(
-						usage.find((row) => row.activity === "teammate_match")?.total ?? 0,
-					),
-					projectPlans: Number(
-						usage.find((row) => row.activity === "project_plan")?.total ?? 0,
-					),
-					topMembers: users
-						.reduce<
-							Array<{
-								userId: string;
-								name: string;
-								email: string;
-								teammateMatches: number;
-								projectPlans: number;
-								lastUsedAt: string | null;
-							}>
-						>((rows, row) => {
-							let item = rows.find(
-								(candidate) => candidate.userId === row.userId,
-							);
-							if (!item) {
-								item = {
-									userId: row.userId,
-									name: row.name,
-									email: row.email,
-									teammateMatches: 0,
-									projectPlans: 0,
-									lastUsedAt: null,
-								};
-								rows.push(item);
-							}
-							if (row.activity === "teammate_match")
-								item.teammateMatches = Number(row.uses);
-							else item.projectPlans = Number(row.uses);
-							const lastUsedAt = new Date(row.lastUsedAt);
-							if (
-								Number.isFinite(lastUsedAt.getTime()) &&
-								(!item.lastUsedAt ||
-									lastUsedAt.getTime() > Date.parse(item.lastUsedAt))
-							)
-								item.lastUsedAt = lastUsedAt.toISOString();
-							return rows;
-						}, [])
-						.sort(
-							(left, right) =>
-								right.teammateMatches +
-								right.projectPlans -
-								(left.teammateMatches + left.projectPlans),
-						)
-						.slice(0, 25),
-				},
-			},
-			{ headers: { "Cache-Control": "no-store" } },
-		);
+			);
+			return NextResponse.json(
+				{ error: "Admin summary is temporarily unavailable." },
+				{ status: 503, headers: { "Cache-Control": "no-store" } },
+			);
+		}
+		console.info("[admin-summary] Summary loaded.", {
+			durationMs: Date.now() - startedAt,
+		});
+		return NextResponse.json(parsed.data, {
+			headers: { "Cache-Control": "no-store" },
+		});
 	} catch (error: unknown) {
 		if (error instanceof MemberAccessError)
 			return NextResponse.json(
 				{ error: error.message },
-				{ status: error.status },
+				{ status: error.status, headers: { "Cache-Control": "no-store" } },
 			);
 		const diagnostic =
 			error instanceof Error
@@ -231,22 +181,16 @@ export async function GET(): Promise<Response> {
 								/postgres(?:ql)?:\/\/[^\s]+/gi,
 								"[database URL redacted]",
 							)
-							.slice(0, 400),
-						cause:
-							error.cause instanceof Error
-								? error.cause.message
-										.replace(
-											/postgres(?:ql)?:\/\/[^\s]+/gi,
-											"[database URL redacted]",
-										)
-										.slice(0, 400)
-								: undefined,
+							.slice(0, 300),
 					}
 				: { name: "UnknownError" };
-		console.error("[admin-summary] Summary query failed.", diagnostic);
+		console.error("[admin-summary] Summary query failed.", {
+			...diagnostic,
+			durationMs: Date.now() - startedAt,
+		});
 		return NextResponse.json(
 			{ error: "Admin summary is temporarily unavailable." },
-			{ status: 500 },
+			{ status: 503, headers: { "Cache-Control": "no-store" } },
 		);
 	}
 }
