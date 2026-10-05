@@ -45,12 +45,30 @@ interface ChatRow extends CopilotMessage {
 }
 
 const WAITING_GUIDANCE = [
-	"Write the problem in one sentence. If the team cannot agree on it, pause before choosing technology.",
-	"Choose one small user journey you can demonstrate end to end. A finished slice teaches more than five unfinished features.",
-	"Split ownership across problem research, building, testing, and the pitch. Roles can overlap, but every task needs an owner.",
-	"Read the official judging criteria and connect each requirement to something judges can see in your demo.",
-	"Keep time for testing and a rehearsal. Explain the problem, show the working part, then share what you learned.",
-	"A certificate is a record of participation. Your strongest outcome is a skill, useful feedback, and a project you can explain honestly.",
+	{
+		title: "How it works",
+		text: "Write the problem in one sentence. If the team cannot agree on it, pause before choosing technology.",
+	},
+	{
+		title: "Learn as you build",
+		text: "Choose one small user journey you can demonstrate end to end. A finished slice teaches more than five unfinished features.",
+	},
+	{
+		title: "Quick learn",
+		text: "Split ownership across problem research, building, testing, and the pitch. Roles can overlap, but every task needs an owner.",
+	},
+	{
+		title: "Did you know?",
+		text: "Judges score against the official criteria. Connect each requirement to something they can see in your demo.",
+	},
+	{
+		title: "Hackathon 101",
+		text: "Keep time for testing and a rehearsal. Explain the problem, show the working part, then share what you learned.",
+	},
+	{
+		title: "A tip while you build",
+		text: "A certificate records participation. Your strongest outcome is a skill, useful feedback, and a project you can explain honestly.",
+	},
 ] as const;
 
 function formatDuration(totalSeconds: number): string {
@@ -168,6 +186,10 @@ export function CopilotApp() {
 	const abortRef = useRef<AbortController | null>(null);
 	const requestStartedAtRef = useRef<number | null>(null);
 	const activeWindowId = useWindowManager((state) => state.activeWindowId);
+	const currentWaitingGuidance =
+		WAITING_GUIDANCE[
+			Math.floor(elapsedSeconds / 12) % WAITING_GUIDANCE.length
+		];
 
 	useEffect(() => {
 		if (activeWindowId !== "copilot") return;
@@ -715,15 +737,10 @@ export function CopilotApp() {
 								</div>
 								<div className="mt-2 border-t border-white/[0.06] pt-2">
 									<p className="text-xs font-semibold uppercase tracking-wider text-fuchsia-100/65">
-										Hackathon field note
+										{currentWaitingGuidance.title}
 									</p>
 									<p className="mt-1 text-xs leading-5 text-white/55">
-										{
-											WAITING_GUIDANCE[
-												Math.floor(elapsedSeconds / 12) %
-													WAITING_GUIDANCE.length
-											]
-										}
+										{currentWaitingGuidance.text}
 									</p>
 								</div>
 							</section>
