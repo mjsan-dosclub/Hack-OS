@@ -338,7 +338,7 @@ export function CopilotApp() {
 			fullText += decoder.decode();
 			if (!fullText.trim())
 				throw new Error(
-					"The AI service returned no text. It may be busy or restarting. Please retry shortly; if this continues, contact a club admin.",
+					"The Co-Pilot could not generate a response. JarvisLabs may be busy or scaling up; wait a minute and retry. If this continues, contact a club admin.",
 				);
 			setLatestAssistant(fullText);
 			if (activeMode === "sprint") recordFeatureUse("project_plan");
@@ -740,7 +740,7 @@ export function CopilotApp() {
 						{error && (
 							<p
 								role="alert"
-								className="rounded-lg border border-rose-100/15 bg-rose-100/[0.04] p-2.5 text-[10px] leading-4 text-rose-100/80"
+								className="copilot-error rounded-lg border border-rose-300/25 bg-rose-300/[0.08] p-3 text-xs leading-5 text-rose-200"
 							>
 								{error}
 							</p>
