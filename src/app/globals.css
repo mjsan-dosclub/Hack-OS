@@ -137,6 +137,11 @@ html[data-os-font="largest"] [class~="text-[20px]"] { font-size: calc(20px * var
 .desktop-root[data-theme="light"] .os-welcome-dialog { border-color: rgba(51,65,85,.18); background: rgba(248,250,252,.98); color: #1e293b; }
 .desktop-root[data-theme="light"] .os-welcome-dialog [class*="text-white"] { color: #334155; }
 .desktop-root[data-theme="light"] .os-welcome-dialog [class*="border-white"] { border-color: rgba(51,65,85,.15); }
+.desktop-root[data-theme="light"] .os-welcome-backdrop { background-color: rgba(15,23,42,.36); }
+.desktop-root[data-theme="light"] .os-welcome-icon { border-color: rgba(14,116,144,.2); background-color: rgba(14,116,144,.08); color: #0e7490; }
+.desktop-root[data-theme="light"] .os-welcome-dialog [class*="text-cyan-"] { color: #0e7490; }
+.desktop-root[data-theme="light"] .os-welcome-primary { background-color: #0e7490; color: #fff; }
+.desktop-root[data-theme="light"] .os-welcome-primary:hover { background-color: #155e75; }
 
 /* Appearance preferences also apply on member login, MFA, and admin pages. */
 html[data-os-theme="light"] body { background: #eef3f7; color: #1e293b; color-scheme: light; }
