@@ -400,16 +400,17 @@ export function MenuBar({
 					className="hidden items-center gap-1.5 text-[10px] text-white/55 sm:flex"
 					title={
 						online
-							? "Browser reports an active network connection"
-							: "Browser reports no network connection"
+							? "Network connected: this reflects the browser connection only, not Hack OS or AI service health."
+							: "Network offline: this reflects the browser connection only, not Hack OS or AI service health."
 					}
+					aria-label={`Network ${online ? "connected" : "offline"}; AI service status is not checked here`}
 				>
 					{online ? (
 						<Wifi className="size-3 text-emerald-300" />
 					) : (
 						<WifiOff className="size-3 text-rose-300" />
 					)}
-					{online ? "Online" : "Offline"}
+					{online ? "Network" : "Offline"}
 				</span>
 				<span
 					role="timer"

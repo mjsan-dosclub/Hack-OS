@@ -17,7 +17,7 @@ interface AppearanceSettings {
 
 const STORAGE_KEY = "hack-os:appearance:v1";
 const DEFAULT_SETTINGS: AppearanceSettings = {
-	theme: "midnight",
+	theme: "light",
 	fontSize: "standard",
 	fontFamily: "system",
 };

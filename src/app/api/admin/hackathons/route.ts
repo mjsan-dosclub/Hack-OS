@@ -125,7 +125,12 @@ export async function GET(request: Request) {
 				published: hackathons.published,
 			})
 			.from(hackathons)
-			.where(eq(hackathons.published, false))
+			.where(
+				or(
+					eq(hackathons.published, false),
+					eq(hackathons.verified, false),
+				),
+			)
 			.orderBy(asc(hackathons.verified), desc(hackathons.updatedAt))
 			.limit(100);
 		const checks = rows.length

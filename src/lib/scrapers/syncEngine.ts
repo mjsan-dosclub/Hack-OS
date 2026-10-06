@@ -126,7 +126,7 @@ async function upsertHackathon(
 			source: record.source,
 			sourceId: record.sourceId ?? null,
 			verified: false,
-			published: true,
+			published: false,
 		};
 
 		const [saved] = await tx
@@ -138,7 +138,7 @@ async function upsertHackathon(
 				set: {
 					...values,
 					verified: existing?.verified ?? false,
-					published: existing?.published ?? true,
+					published: existing?.published ?? false,
 					updatedAt: new Date(),
 				},
 			})
