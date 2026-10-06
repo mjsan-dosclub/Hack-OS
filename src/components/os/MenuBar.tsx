@@ -397,6 +397,7 @@ export function MenuBar({
 					{fps === null ? "—" : fps} FPS
 				</span>
 				<span
+					role="status"
 					className="hidden items-center gap-1.5 text-[10px] text-white/55 sm:flex"
 					title={
 						online
