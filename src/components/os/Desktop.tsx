@@ -210,14 +210,14 @@ export function Desktop({ initialApp }: { initialApp?: AppKey } = {}) {
 
 				<Dock onOpenPalette={() => setPaletteOpen(true)} />
 				{welcomeOpen && (
-					<div className="absolute inset-x-0 bottom-24 top-11 z-[600] grid place-items-center bg-black/20 p-4 backdrop-blur-[2px]">
+					<div className="os-welcome-backdrop fixed inset-0 z-[800] grid place-items-center bg-black/20 p-4 backdrop-blur-[2px]">
 						<section
 							role="dialog"
 							aria-modal="true"
 							aria-labelledby="welcome-title"
 							className="os-welcome-dialog w-full max-w-lg rounded-2xl border border-white/15 bg-[#171b25]/95 p-6 shadow-2xl shadow-black/40 backdrop-blur-2xl"
 						>
-							<div className="grid size-11 place-items-center rounded-xl border border-cyan-100/20 bg-cyan-100/10 text-cyan-100">
+							<div className="os-welcome-icon grid size-11 place-items-center rounded-xl border border-cyan-100/20 bg-cyan-100/10 text-cyan-100">
 								<BookOpen className="size-5" />
 							</div>
 							<p className="mt-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-100">
@@ -238,7 +238,7 @@ export function Desktop({ initialApp }: { initialApp?: AppKey } = {}) {
 								<button
 									type="button"
 									onClick={() => dismissWelcome(true)}
-									className="inline-flex h-9 items-center gap-2 rounded-lg bg-cyan-100 px-3 text-[10px] font-semibold text-[#09151a] transition hover:bg-cyan-50"
+									className="os-welcome-primary inline-flex h-9 items-center gap-2 rounded-lg bg-cyan-100 px-3 text-[10px] font-semibold text-[#09151a] transition hover:bg-cyan-50"
 								>
 									<BookOpen className="size-3.5" />
 									Show me around

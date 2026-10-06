@@ -126,10 +126,7 @@ export async function GET(request: Request) {
 			})
 			.from(hackathons)
 			.where(
-				or(
-					eq(hackathons.published, false),
-					eq(hackathons.verified, false),
-				),
+				or(eq(hackathons.published, false), eq(hackathons.verified, false)),
 			)
 			.orderBy(asc(hackathons.verified), desc(hackathons.updatedAt))
 			.limit(100);

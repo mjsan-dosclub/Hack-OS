@@ -255,9 +255,7 @@ export function CopilotApp() {
 	const requestStartedAtRef = useRef<number | null>(null);
 	const activeWindowId = useWindowManager((state) => state.activeWindowId);
 	const currentWaitingGuidance =
-		WAITING_GUIDANCE[
-			Math.floor(elapsedSeconds / 12) % WAITING_GUIDANCE.length
-		];
+		WAITING_GUIDANCE[Math.floor(elapsedSeconds / 12) % WAITING_GUIDANCE.length];
 
 	useEffect(() => {
 		if (activeWindowId !== "copilot") return;
