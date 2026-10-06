@@ -69,6 +69,74 @@ const WAITING_GUIDANCE = [
 		title: "A tip while you build",
 		text: "A certificate records participation. Your strongest outcome is a skill, useful feedback, and a project you can explain honestly.",
 	},
+	{
+		title: "Start small",
+		text: "Define the smallest version that proves your idea. Add extra features only after that version works from start to finish.",
+	},
+	{
+		title: "Did you know?",
+		text: "A clear problem statement helps judges and teammates understand why your solution matters before you explain how it works.",
+	},
+	{
+		title: "How it works",
+		text: "Turn a broad idea into steps: who has the problem, what they do today, and what your prototype will help them do instead.",
+	},
+	{
+		title: "Quick learn",
+		text: "Agree on one shared task board. Give every task an owner and a clear finish condition so teammates know what to pick up next.",
+	},
+	{
+		title: "Learn as you build",
+		text: "Test your prototype with one person who was not on the team. Watch where they get stuck before adding more features.",
+	},
+	{
+		title: "Hackathon 101",
+		text: "Check the official rules for team size, eligibility, submission format, deadlines, and required use of tools or datasets.",
+	},
+	{
+		title: "A tip while you build",
+		text: "Make a working checkpoint early. If time runs short, you will still have something real to demonstrate and explain.",
+	},
+	{
+		title: "How it works",
+		text: "Use a short daily sync: what I finished, what I will do next, and what is blocking me. Keep it focused on unblocking the team.",
+	},
+	{
+		title: "Did you know?",
+		text: "A demo is easier to follow when it shows one user journey in order: the problem, the action, and the result.",
+	},
+	{
+		title: "Quick learn",
+		text: "Save time for a backup demo path. A short screen recording or screenshots can help explain your work if the live setup fails.",
+	},
+	{
+		title: "Learn as you build",
+		text: "Keep notes on what you tried, what failed, and what changed. Those decisions make your final presentation more credible.",
+	},
+	{
+		title: "Hackathon 101",
+		text: "Use tools and datasets you can explain. Be ready to say what your team built, what came from a library, and what still needs work.",
+	},
+	{
+		title: "A tip while you build",
+		text: "Ask a mentor a focused question and share what you already tried. That makes it easier for them to give useful guidance.",
+	},
+	{
+		title: "Start small",
+		text: "Decide what you will not build during this event. A deliberate scope is easier to finish than a long list of wishes.",
+	},
+	{
+		title: "Did you know?",
+		text: "The official event page is the source of truth for dates, eligibility, judging, and submission rules. Recheck it before submitting.",
+	},
+	{
+		title: "How it works",
+		text: "Give each teammate a contribution they can own, then agree on how the pieces will connect before everyone builds separately.",
+	},
+	{
+		title: "Learn as you build",
+		text: "A useful prototype can be simple. Show the key interaction clearly instead of spending most of your time polishing screens users will not reach.",
+	},
 ] as const;
 
 function formatDuration(totalSeconds: number): string {
