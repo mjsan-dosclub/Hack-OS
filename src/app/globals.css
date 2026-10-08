@@ -173,6 +173,38 @@ html[data-os-theme="light"] .os-standalone-screen select { border-color: rgba(51
 html[data-os-theme="light"] .os-standalone-screen input::placeholder,
 html[data-os-theme="light"] .os-standalone-screen textarea::placeholder { color: #64748b !important; opacity: 1; }
 
+/* Admin dialogs are portaled beside their page root, so page-scoped appearance
+   rules cannot reach them. Keep their palette tied to the globally selected OS theme. */
+html[data-os-theme="light"] .admin-modal-backdrop { background-color: rgba(15,23,42,.42) !important; }
+html[data-os-theme="light"] .admin-modal {
+  border-color: rgba(51,65,85,.18) !important;
+  background-color: #f8fafc !important;
+  color: #1e293b !important;
+  color-scheme: light;
+  box-shadow: 0 28px 90px rgba(15,23,42,.26);
+}
+html[data-os-theme="light"] .admin-modal [class*="bg-[#151a24]"],
+html[data-os-theme="light"] .admin-modal [class*="bg-black/"] { background-color: #eef2f6 !important; }
+html[data-os-theme="light"] .admin-modal [class*="bg-white/"] { background-color: rgba(15,23,42,.035) !important; }
+html[data-os-theme="light"] .admin-modal [class*="text-white"] { color: #334155 !important; }
+html[data-os-theme="light"] .admin-modal [class*="text-slate-100"],
+html[data-os-theme="light"] .admin-modal [class*="text-slate-200"],
+html[data-os-theme="light"] .admin-modal [class*="text-slate-300"] { color: #334155 !important; }
+html[data-os-theme="light"] .admin-modal [class*="text-slate-400"],
+html[data-os-theme="light"] .admin-modal [class*="text-slate-500"],
+html[data-os-theme="light"] .admin-modal [class*="text-white/"] { color: #64748b !important; }
+html[data-os-theme="light"] .admin-modal [class*="text-cyan-"] { color: #0e7490 !important; }
+html[data-os-theme="light"] .admin-modal [class*="text-emerald-"] { color: #047857 !important; }
+html[data-os-theme="light"] .admin-modal [class*="text-amber-"] { color: #a16207 !important; }
+html[data-os-theme="light"] .admin-modal [class*="text-rose-"] { color: #be123c !important; }
+html[data-os-theme="light"] .admin-modal [class*="border-white"] { border-color: rgba(51,65,85,.17) !important; }
+html[data-os-theme="light"] .admin-modal [class*="border-cyan-"] { border-color: rgba(8,145,178,.25) !important; }
+html[data-os-theme="light"] .admin-modal [class*="border-emerald-"] { border-color: rgba(5,150,105,.25) !important; }
+html[data-os-theme="light"] .admin-modal [class*="border-rose-"] { border-color: rgba(225,29,72,.25) !important; }
+html[data-os-theme="light"] .admin-modal-banner [class*="text-white"] { color: #fff !important; }
+html[data-os-theme="light"] .admin-modal button:not([class*="bg-cyan-"]) { color: #334155; }
+html[data-os-theme="light"] .admin-modal button[class*="bg-cyan-"] { color: #082f49 !important; }
+
 .os-standalone-screen a,
 .os-standalone-screen button:not(:disabled) { cursor: pointer; transition: transform .16s cubic-bezier(.2,.8,.2,1), box-shadow .16s ease, background-color .16s ease, border-color .16s ease, color .16s ease; }
 .os-standalone-screen button:disabled { cursor: wait; }

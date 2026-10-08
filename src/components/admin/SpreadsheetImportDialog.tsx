@@ -152,14 +152,14 @@ export function SpreadsheetImportDialog({
 
 	return (
 		<div
-			className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm"
+			className="admin-modal-backdrop fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm"
 			role="presentation"
 		>
 			<section
 				role="dialog"
 				aria-modal="true"
 				aria-labelledby="spreadsheet-import-title"
-				className="my-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-white/10 bg-[#151a24] shadow-2xl shadow-black/50"
+				className="admin-modal my-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-white/10 bg-[#151a24] shadow-2xl shadow-black/50"
 			>
 				<header className="flex items-start justify-between gap-4 border-b border-white/10 px-5 py-4 sm:px-6">
 					<div className="flex items-start gap-3">
