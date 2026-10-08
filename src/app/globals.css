@@ -173,7 +173,7 @@ html[data-os-theme="light"] .os-standalone-screen select { border-color: rgba(51
 html[data-os-theme="light"] .os-standalone-screen input::placeholder,
 html[data-os-theme="light"] .os-standalone-screen textarea::placeholder { color: #64748b !important; opacity: 1; }
 
-/* Admin dialogs are portaled beside their page root, so page-scoped appearance
+/* Admin dialogs render as siblings of their page root, so page-scoped appearance
    rules cannot reach them. Keep their palette tied to the globally selected OS theme. */
 html[data-os-theme="light"] .admin-modal-backdrop { background-color: rgba(15,23,42,.42) !important; }
 html[data-os-theme="light"] .admin-modal {
