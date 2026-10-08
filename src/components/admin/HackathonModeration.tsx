@@ -392,6 +392,9 @@ export function HackathonModeration() {
 				await refreshApproved();
 				setActiveTab("approved");
 			}
+			if (action === "hide" && activeTab === "edit") {
+				setActiveTab("approved");
+			}
 			setMessage(
 				action === "create"
 					? "Manual event added to the review queue. Check the official page, then approve it to publish."
