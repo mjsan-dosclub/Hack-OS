@@ -1,4 +1,4 @@
-import { desc, ilike, or, sql } from "drizzle-orm";
+import { desc, ilike, inArray, or, sql, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import type { z } from "zod";
@@ -11,8 +11,10 @@ import {
 import {
 	studentMasterListSchema,
 	studentMasterManualInputSchema,
+	studentMasterUpdateSchema,
 	studentMasterUploadResultSchema,
 } from "@/schemas/admin";
+import { adminDeleteIdsSchema } from "@/schemas/moderation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -141,6 +143,7 @@ export async function GET(request: Request) {
 		const rows = await getDatabase()
 			.select({
 				id: clubMembers.id,
+				authLinked: sql<boolean>`${clubMembers.authUserId} is not null`,
 				fullName: clubMembers.fullName,
 				email: clubMembers.email,
 				batchYear: clubMembers.collegeYear,
@@ -299,6 +302,106 @@ export async function POST(request: Request) {
 			status: 200,
 			headers: { "Cache-Control": "no-store" },
 		});
+	} catch (error: unknown) {
+		return failure(error);
+	}
+}
+
+export async function PATCH(request: Request) {
+	try {
+		await requireAdminMember();
+		if (request.headers.get("origin") !== new URL(request.url).origin) {
+			return NextResponse.json(
+				{ error: "Origin check failed." },
+				{ status: 403 },
+			);
+		}
+		const body: unknown = await request.json().catch(() => null);
+		const parsed = studentMasterUpdateSchema.safeParse(body);
+		if (!parsed.success) {
+			return NextResponse.json(
+				{
+					error:
+						parsed.error.issues[0]?.message ?? "Student details are invalid.",
+				},
+				{ status: 400 },
+			);
+		}
+		const { id, student } = parsed.data;
+		const [existing] = await getDatabase()
+			.select({
+				email: clubMembers.email,
+				authLinked: sql<boolean>`${clubMembers.authUserId} is not null`,
+			})
+			.from(clubMembers)
+			.where(eq(clubMembers.id, id))
+			.limit(1);
+		if (!existing)
+			return NextResponse.json(
+				{ error: "Student record not found." },
+				{ status: 404 },
+			);
+		if (
+			existing.authLinked &&
+			existing.email.toLowerCase() !== student.email.toLowerCase()
+		) {
+			return NextResponse.json(
+				{
+					error:
+						"This student has a linked sign-in account. Change the email through the account recovery process before changing the roster email.",
+				},
+				{ status: 409 },
+			);
+		}
+		const [updated] = await getDatabase()
+			.update(clubMembers)
+			.set({
+				fullName: student.fullName,
+				email: student.email,
+				collegeYear: student.batchYear,
+				collegeName: student.collegeName,
+				department: student.department,
+				degree: student.degree,
+				gender: student.gender,
+				membershipStatus: student.membershipStatus,
+				verifiedMember: student.membershipStatus !== "guest",
+				updatedAt: new Date(),
+			})
+			.where(eq(clubMembers.id, id))
+			.returning({ id: clubMembers.id });
+		if (!updated)
+			return NextResponse.json(
+				{ error: "Student record not found." },
+				{ status: 404 },
+			);
+		return NextResponse.json({ id: updated.id, status: "updated" });
+	} catch (error: unknown) {
+		return failure(error);
+	}
+}
+
+export async function DELETE(request: Request) {
+	try {
+		await requireAdminMember();
+		if (request.headers.get("origin") !== new URL(request.url).origin) {
+			return NextResponse.json(
+				{ error: "Origin check failed." },
+				{ status: 403 },
+			);
+		}
+		const body: unknown = await request.json().catch(() => null);
+		const parsed = adminDeleteIdsSchema.safeParse(body);
+		if (!parsed.success) {
+			return NextResponse.json(
+				{ error: "Select between 1 and 100 unique students." },
+				{ status: 400 },
+			);
+		}
+		const deleted = await getDatabase()
+			.delete(clubMembers)
+			.where(inArray(clubMembers.id, parsed.data.ids))
+			.returning({ id: clubMembers.id });
+		return NextResponse.json({ deletedCount: deleted.length });
 	} catch (error: unknown) {
 		return failure(error);
 	}

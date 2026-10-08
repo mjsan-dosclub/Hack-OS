@@ -7,6 +7,7 @@ import {
 	requireAdminMember,
 } from "@/lib/auth/requireVerifiedMember";
 import {
+	adminDeleteIdsSchema,
 	approvedEventsListSchema,
 	approvedEventsQuerySchema,
 	reviewActionSchema,
@@ -71,8 +72,10 @@ export async function GET(request: Request) {
 					.select({
 						id: hackathons.id,
 						title: hackathons.title,
+						description: hackathons.description,
 						organizer: hackathons.organizer,
 						websiteUrl: hackathons.websiteUrl,
+						bannerUrl: hackathons.bannerUrl,
 						format: hackathons.format,
 						venueCity: hackathons.venueCity,
 						venueCountry: hackathons.venueCountry,
@@ -80,6 +83,8 @@ export async function GET(request: Request) {
 						endDate: hackathons.endDate,
 						registrationDeadline: hackathons.registrationDeadline,
 						applicationStatus: hackathons.applicationStatus,
+						prizeCurrency: hackathons.prizeCurrency,
+						totalPrizeValue: hackathons.totalPrizeValue,
 						source: hackathons.source,
 					})
 					.from(hackathons)
@@ -263,6 +268,27 @@ export async function POST(request: Request) {
 			.limit(1);
 		if (!existing)
 			return NextResponse.json({ error: "Event not found." }, { status: 404 });
+		if (parsed.data.action === "update") {
+			const [publishedEvent] = await db
+				.select({ id: hackathons.id })
+				.from(hackathons)
+				.where(
+					and(
+						eq(hackathons.id, id),
+						eq(hackathons.published, true),
+						eq(hackathons.verified, true),
+					),
+				)
+				.limit(1);
+			if (!publishedEvent)
+				return NextResponse.json(
+					{
+						error:
+							"This event is no longer published. Refresh the list and review it in the moderation queue.",
+					},
+					{ status: 409 },
+				);
+		}
 		if (parsed.data.action === "hide") {
 			await db
 				.update(hackathons)
@@ -294,13 +320,50 @@ export async function POST(request: Request) {
 				applicationStatus: event.applicationStatus,
 				prizeCurrency: event.prizeCurrency,
 				totalPrizeValue: event.totalPrizeValue,
-				published: action === "approve",
-				verified: action === "approve",
+				published: action === "approve" || action === "update",
+				verified: action === "approve" || action === "update",
 			})
 			.where(eq(hackathons.id, id));
 		return NextResponse.json({
-			status: action === "approve" ? "published" : "saved_for_review",
+			status:
+				action === "approve" || action === "update"
+					? "published"
+					: "saved_for_review",
 		});
+	} catch (error: unknown) {
+		return failure(error);
+	}
+}
+
+/** Delete explicitly selected published events; related saved/event records follow their FK rules. */
+export async function DELETE(request: Request) {
+	try {
+		await requireAdminMember();
+		if (request.headers.get("origin") !== new URL(request.url).origin) {
+			return NextResponse.json(
+				{ error: "Origin check failed." },
+				{ status: 403 },
+			);
+		}
+		const body: unknown = await request.json().catch(() => null);
+		const parsed = adminDeleteIdsSchema.safeParse(body);
+		if (!parsed.success) {
+			return NextResponse.json(
+				{ error: "Select between 1 and 100 unique events." },
+				{ status: 400 },
+			);
+		}
+		const deleted = await getDatabase()
+			.delete(hackathons)
+			.where(
+				and(
+					eq(hackathons.published, true),
+					eq(hackathons.verified, true),
+					inArray(hackathons.id, parsed.data.ids),
+				),
+			)
+			.returning({ id: hackathons.id });
+		return NextResponse.json({ deletedCount: deleted.length });
 	} catch (error: unknown) {
 		return failure(error);
 	}

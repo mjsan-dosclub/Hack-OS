@@ -1,15 +1,20 @@
 "use client";
 
 import {
+	CheckSquare,
 	ChevronLeft,
 	ChevronRight,
 	Download,
 	ExternalLink,
+	Eye,
 	LoaderCircle,
+	Pencil,
 	Plus,
 	RefreshCw,
 	Search,
 	ShieldCheck,
+	Square,
+	Trash2,
 	UploadCloud,
 	X,
 } from "lucide-react";
@@ -76,6 +81,18 @@ function shortDate(iso: string): string {
 		year: "numeric",
 		timeZone: "Asia/Kolkata",
 	}).format(new Date(iso));
+}
+
+function formatPrize(currency: string, value: number): string {
+	try {
+		return new Intl.NumberFormat("en-US", {
+			style: "currency",
+			currency,
+			maximumFractionDigits: 0,
+		}).format(value);
+	} catch {
+		return `${currency} ${new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value)}`;
+	}
 }
 
 type BulkIssue = z.infer<typeof bulkManualEventsResultSchema>["issues"][number];
@@ -152,7 +169,7 @@ export function HackathonModeration() {
 	const [draft, setDraft] = useState<ReviewEvent | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [busyAction, setBusyAction] = useState<
-		"create" | "save" | "approve" | "hide" | null
+		"create" | "save" | "approve" | "hide" | "update" | null
 	>(null);
 	const busy = busyAction !== null;
 	const [error, setError] = useState("");
@@ -167,9 +184,9 @@ export function HackathonModeration() {
 		duplicatesSkipped: number;
 		issueCount: number;
 	} | null>(null);
-	const [activeTab, setActiveTab] = useState<"approved" | "review" | "create">(
-		"approved",
-	);
+	const [activeTab, setActiveTab] = useState<
+		"approved" | "review" | "create" | "edit"
+	>("approved");
 	const [approvedEvents, setApprovedEvents] = useState<ApprovedEvent[]>([]);
 	const [approvedLoading, setApprovedLoading] = useState(true);
 	const [approvedSearch, setApprovedSearch] = useState("");
@@ -177,6 +194,10 @@ export function HackathonModeration() {
 	const [approvedFormat, setApprovedFormat] = useState("all");
 	const [approvedPage, setApprovedPage] = useState(1);
 	const [approvedTotal, setApprovedTotal] = useState(0);
+	const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
+	const [previewEvent, setPreviewEvent] = useState<ApprovedEvent | null>(null);
+	const [deletingEvents, setDeletingEvents] = useState(false);
+	const [generatingDescription, setGeneratingDescription] = useState(false);
 	const approvedPageSize = 20;
 	const approvedPages = Math.max(
 		1,
@@ -233,6 +254,11 @@ export function HackathonModeration() {
 			if (!parsed.success)
 				throw new Error("The approved event list is invalid.");
 			setApprovedEvents(parsed.data.events);
+			setSelectedEventIds((current) =>
+				current.filter((id) =>
+					parsed.data.events.some((event) => event.id === id),
+				),
+			);
 			setApprovedTotal(parsed.data.total);
 		} catch (caught) {
 			setError(
@@ -251,7 +277,9 @@ export function HackathonModeration() {
 		return () => window.clearTimeout(timer);
 	}, [activeTab, refreshApproved]);
 
-	async function submit(action: "create" | "save" | "approve" | "hide") {
+	async function submit(
+		action: "create" | "save" | "approve" | "hide" | "update",
+	) {
 		if (!draft) return;
 		setError("");
 		setFieldErrors({});
@@ -360,14 +388,20 @@ export function HackathonModeration() {
 				setActiveTab("review");
 			}
 			await refresh(createdId);
+			if (action === "update") {
+				await refreshApproved();
+				setActiveTab("approved");
+			}
 			setMessage(
 				action === "create"
 					? "Manual event added to the review queue. Check the official page, then approve it to publish."
 					: action === "approve"
 						? "Event verified and published for members."
-						: action === "hide"
-							? "Event hidden from members."
-							: "Changes saved. Review and approve to publish.",
+						: action === "update"
+							? "Published event updated."
+							: action === "hide"
+								? "Event hidden from members."
+								: "Changes saved. Review and approve to publish.",
 			);
 		} catch (caught) {
 			setError(
@@ -375,6 +409,114 @@ export function HackathonModeration() {
 			);
 		} finally {
 			setBusyAction(null);
+		}
+	}
+
+	function beginApprovedEdit(event: ApprovedEvent) {
+		setDraft(
+			editable({ ...event, verified: true, published: true, evidence: [] }),
+		);
+		setIsCreating(false);
+		setActiveTab("edit");
+		setError("");
+		setMessage("");
+		setFieldErrors({});
+	}
+
+	function toggleEvent(id: string) {
+		setSelectedEventIds((current) =>
+			current.includes(id)
+				? current.filter((value) => value !== id)
+				: [...current, id],
+		);
+	}
+
+	function toggleVisibleEvents() {
+		const ids = approvedEvents.map((event) => event.id);
+		const allSelected =
+			ids.length > 0 && ids.every((id) => selectedEventIds.includes(id));
+		setSelectedEventIds((current) =>
+			allSelected
+				? current.filter((id) => !ids.includes(id))
+				: [...new Set([...current, ...ids])],
+		);
+	}
+
+	async function deleteSelectedEvents() {
+		if (selectedEventIds.length === 0) return;
+		const count = selectedEventIds.length;
+		if (
+			!window.confirm(
+				`Permanently delete ${count} selected approved ${count === 1 ? "event" : "events"}? Related saved events and event-linked records may also be deleted.`,
+			)
+		)
+			return;
+		setDeletingEvents(true);
+		setError("");
+		try {
+			const response = await fetch("/api/admin/hackathons", {
+				method: "DELETE",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ ids: selectedEventIds }),
+			});
+			if (!response.ok) throw new Error(await responseError(response));
+			const result: unknown = await response.json();
+			if (
+				typeof result !== "object" ||
+				result === null ||
+				!("deletedCount" in result) ||
+				typeof result.deletedCount !== "number"
+			)
+				throw new Error("The delete response was invalid.");
+			setSelectedEventIds([]);
+			setMessage(
+				`${result.deletedCount} approved ${result.deletedCount === 1 ? "event" : "events"} deleted.`,
+			);
+			if (approvedEvents.length === count && approvedPage > 1)
+				setApprovedPage((page) => page - 1);
+			else await refreshApproved();
+		} catch (caught) {
+			setError(
+				caught instanceof Error
+					? caught.message
+					: "Could not delete selected events.",
+			);
+		} finally {
+			setDeletingEvents(false);
+		}
+	}
+
+	async function generateDescription() {
+		if (!draft || isCreating || !draft.id) return;
+		setGeneratingDescription(true);
+		setError("");
+		try {
+			const response = await fetch("/api/admin/hackathons/description", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ id: draft.id }),
+			});
+			if (!response.ok) throw new Error(await responseError(response));
+			const body: unknown = await response.json();
+			if (
+				typeof body !== "object" ||
+				body === null ||
+				!("description" in body) ||
+				typeof body.description !== "string"
+			)
+				throw new Error("The description response was invalid.");
+			setField("description", body.description);
+			setMessage(
+				"AI draft added to the description field. Check it against the official page before saving or publishing.",
+			);
+		} catch (caught) {
+			setError(
+				caught instanceof Error
+					? caught.message
+					: "Could not generate a description.",
+			);
+		} finally {
+			setGeneratingDescription(false);
 		}
 	}
 
@@ -734,6 +876,29 @@ export function HackathonModeration() {
 									</select>
 								</label>
 							</div>
+							{selectedEventIds.length > 0 && (
+								<div
+									className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-300/20 bg-rose-300/[0.06] px-4 py-3"
+									role="status"
+								>
+									<p className="text-sm text-white/75">
+										{selectedEventIds.length} approved events selected
+									</p>
+									<button
+										type="button"
+										onClick={() => void deleteSelectedEvents()}
+										disabled={deletingEvents}
+										className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-rose-200/25 px-3 text-sm font-semibold text-rose-100 transition hover:bg-rose-300/10 disabled:cursor-wait disabled:opacity-60"
+									>
+										{deletingEvents ? (
+											<LoaderCircle className="animate-spin" size={15} />
+										) : (
+											<Trash2 size={15} />
+										)}
+										{deletingEvents ? "Deleting…" : "Delete selected"}
+									</button>
+								</div>
+							)}
 							{approvedLoading && approvedEvents.length === 0 && (
 								<AdminSkeleton kind="table" />
 							)}
@@ -743,23 +908,59 @@ export function HackathonModeration() {
 								<table className="w-full min-w-[920px] border-collapse text-left text-sm">
 									<thead className="bg-white/[0.04] text-xs uppercase tracking-wide text-slate-400">
 										<tr>
-											<th className="px-4 py-3">Event</th>
+											<th className="w-12 px-4 py-3">
+												<button
+													type="button"
+													aria-label="Select or clear events on this page"
+													onClick={toggleVisibleEvents}
+													className="rounded p-1 hover:bg-white/10"
+												>
+													{approvedEvents.length > 0 &&
+													approvedEvents.every((event) =>
+														selectedEventIds.includes(event.id),
+													) ? (
+														<CheckSquare size={17} />
+													) : (
+														<Square size={17} />
+													)}
+												</button>
+											</th>
+											<th className="px-4 py-3">Event / prize</th>
 											<th className="px-4 py-3">Format / location</th>
 											<th className="px-4 py-3">Event dates</th>
 											<th className="px-4 py-3">Status</th>
 											<th className="px-4 py-3">Source</th>
 											<th className="px-4 py-3">Official page</th>
+											<th className="px-4 py-3">Actions</th>
 										</tr>
 									</thead>
 									<tbody className="divide-y divide-white/10">
 										{approvedEvents.map((event) => (
 											<tr key={event.id} className="hover:bg-white/[0.025]">
 												<td className="px-4 py-3">
+													<input
+														type="checkbox"
+														aria-label={`Select ${event.title}`}
+														checked={selectedEventIds.includes(event.id)}
+														onChange={() => toggleEvent(event.id)}
+														className="h-4 w-4 accent-cyan-200"
+													/>
+												</td>
+												<td className="px-4 py-3">
 													<p className="font-semibold text-slate-100">
 														{event.title}
 													</p>
 													<p className="mt-1 text-xs text-slate-500">
 														{event.organizer}
+													</p>
+													<p className="mt-1 text-xs font-semibold text-amber-200">
+														{formatPrize(
+															event.prizeCurrency,
+															event.totalPrizeValue,
+														)}{" "}
+														<span className="font-normal text-slate-400">
+															{event.prizeCurrency} total prize
+														</span>
 													</p>
 												</td>
 												<td className="px-4 py-3 capitalize text-slate-300">
@@ -798,12 +999,30 @@ export function HackathonModeration() {
 														Open <ExternalLink size={13} />
 													</a>
 												</td>
+												<td className="px-4 py-3">
+													<div className="flex flex-wrap gap-2">
+														<button
+															type="button"
+															onClick={() => setPreviewEvent(event)}
+															className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-2.5 py-2 text-xs text-white/75 hover:bg-white/5"
+														>
+															<Eye size={13} /> Preview
+														</button>
+														<button
+															type="button"
+															onClick={() => beginApprovedEdit(event)}
+															className="inline-flex items-center gap-1 rounded-lg border border-cyan-200/20 px-2.5 py-2 text-xs text-cyan-100 hover:bg-cyan-200/10"
+														>
+															<Pencil size={13} /> Edit
+														</button>
+													</div>
+												</td>
 											</tr>
 										))}
 										{!approvedLoading && approvedEvents.length === 0 && (
 											<tr>
 												<td
-													colSpan={6}
+													colSpan={8}
 													className="px-4 py-12 text-center text-slate-400"
 												>
 													No approved events match these filters.
@@ -867,529 +1086,712 @@ export function HackathonModeration() {
 								the scraper to start the review queue.
 							</p>
 						)}
-					{(activeTab === "review" || activeTab === "create") && draft && (
-						<div
-							className={`grid gap-5 ${isCreating ? "" : "lg:grid-cols-[280px_minmax(0,1fr)]"}`}
-						>
-							{!isCreating && (
-								<nav aria-label="Events awaiting review" className="space-y-2">
-									{events.map((event) => (
-										<button
-											key={event.id}
-											type="button"
-											onClick={() => {
-												setDraft(editable(event));
-												setIsCreating(false);
-												setError("");
-												setMessage("");
-											}}
-											className={`w-full rounded-xl border p-4 text-left ${draft.id === event.id ? "border-emerald-300/40 bg-emerald-300/10" : "border-white/10 bg-white/[0.03]"}`}
-										>
-											<span className="block text-sm font-semibold">
-												{event.title}
-											</span>
-											<span className="mt-1 block text-xs text-slate-400">
-												{event.source} ·{" "}
-												{event.verified && event.published
-													? "Published"
-													: "Needs review"}
-											</span>
-										</button>
-									))}
-								</nav>
-							)}
-							<section className="rounded-2xl border border-white/10 bg-white/[0.035] p-5 sm:p-7">
-								<div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-									<div>
-										<p className="text-xs uppercase tracking-[0.15em] text-slate-500">
-											{isCreating
-												? "Manual event · not yet saved"
-												: `Official source · ${draft.source}`}
-										</p>
-										<h2 className="mt-1 text-xl font-semibold">
-											{draft.title}
-										</h2>
+					{(activeTab === "review" ||
+						activeTab === "create" ||
+						activeTab === "edit") &&
+						draft && (
+							<div
+								className={`grid gap-5 ${activeTab === "review" && !isCreating ? "lg:grid-cols-[280px_minmax(0,1fr)]" : ""}`}
+							>
+								{!isCreating && activeTab === "review" && (
+									<nav
+										aria-label="Events awaiting review"
+										className="space-y-2"
+									>
+										{events.map((event) => (
+											<button
+												key={event.id}
+												type="button"
+												onClick={() => {
+													setDraft(editable(event));
+													setIsCreating(false);
+													setError("");
+													setMessage("");
+												}}
+												className={`w-full rounded-xl border p-4 text-left ${draft.id === event.id ? "border-emerald-300/40 bg-emerald-300/10" : "border-white/10 bg-white/[0.03]"}`}
+											>
+												<span className="block text-sm font-semibold">
+													{event.title}
+												</span>
+												<span className="mt-1 block text-xs text-slate-400">
+													{event.source} ·{" "}
+													{event.verified && event.published
+														? "Published"
+														: "Needs review"}
+												</span>
+											</button>
+										))}
+									</nav>
+								)}
+								<section className="rounded-2xl border border-white/10 bg-white/[0.035] p-5 sm:p-7">
+									<div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+										<div>
+											<p className="text-xs uppercase tracking-[0.15em] text-slate-500">
+												{isCreating
+													? "Manual event · not yet saved"
+													: activeTab === "edit"
+														? "Published event · editing"
+														: `Official source · ${draft.source}`}
+											</p>
+											<h2 className="mt-1 text-xl font-semibold">
+												{draft.title}
+											</h2>
+										</div>
+										{!isCreating && (
+											<a
+												href={draft.websiteUrl}
+												target="_blank"
+												rel="noopener noreferrer"
+												className="inline-flex items-center gap-2 rounded-xl bg-cyan-100 px-3 py-2 text-sm font-semibold text-slate-950"
+											>
+												Open official event <ExternalLink size={15} />
+											</a>
+										)}
 									</div>
 									{!isCreating && (
-										<a
-											href={draft.websiteUrl}
-											target="_blank"
-											rel="noopener noreferrer"
-											className="inline-flex items-center gap-2 rounded-xl bg-cyan-100 px-3 py-2 text-sm font-semibold text-slate-950"
-										>
-											Open official event <ExternalLink size={15} />
-										</a>
+										<div className="mb-5 rounded-xl border border-white/10 bg-black/15 p-4 text-xs text-slate-300">
+											<p className="font-semibold">Independent source checks</p>
+											{draft.evidence.length ? (
+												<ul className="mt-2 space-y-1">
+													{draft.evidence.map((check) => (
+														<li key={`${check.provider}-${check.sourceUrl}`}>
+															<a
+																href={check.sourceUrl}
+																target="_blank"
+																rel="noopener noreferrer"
+																className="text-cyan-200 underline"
+															>
+																{check.provider}
+															</a>{" "}
+															· {check.checkStatus}
+														</li>
+													))}
+												</ul>
+											) : (
+												<p className="mt-2 text-slate-500">
+													No independent check recorded. Verify against the
+													official event page before approval.
+												</p>
+											)}
+										</div>
 									)}
-								</div>
-								{!isCreating && (
-									<div className="mb-5 rounded-xl border border-white/10 bg-black/15 p-4 text-xs text-slate-300">
-										<p className="font-semibold">Independent source checks</p>
-										{draft.evidence.length ? (
-											<ul className="mt-2 space-y-1">
-												{draft.evidence.map((check) => (
-													<li key={`${check.provider}-${check.sourceUrl}`}>
-														<a
-															href={check.sourceUrl}
-															target="_blank"
-															rel="noopener noreferrer"
-															className="text-cyan-200 underline"
-														>
-															{check.provider}
-														</a>{" "}
-														· {check.checkStatus}
-													</li>
-												))}
-											</ul>
-										) : (
-											<p className="mt-2 text-slate-500">
-												No independent check recorded. Verify against the
-												official event page before approval.
-											</p>
-										)}
-									</div>
-								)}
-								<form
-									onSubmit={(event) => {
-										event.preventDefault();
-										void submit(isCreating ? "create" : "save");
-									}}
-									className="grid gap-4 sm:grid-cols-2"
-								>
-									<label className="text-sm">
-										Title
-										<input
-											id="event-field-title"
-											required
-											value={draft.title}
-											onChange={(event) =>
-												setField("title", event.target.value)
-											}
-											aria-invalid={Boolean(fieldErrors.title)}
-											aria-describedby={
-												fieldErrors.title ? "event-error-title" : undefined
-											}
-											className={`mt-1 w-full rounded-lg border ${fieldErrors.title ? "border-rose-300/60" : "border-white/10"} bg-black/20 p-2`}
-										/>
-										{fieldIssue("title")}
-									</label>
-									<label className="text-sm">
-										Organizer
-										<input
-											id="event-field-organizer"
-											required
-											value={draft.organizer}
-											onChange={(event) =>
-												setField("organizer", event.target.value)
-											}
-											aria-invalid={Boolean(fieldErrors.organizer)}
-											aria-describedby={
-												fieldErrors.organizer
-													? "event-error-organizer"
-													: undefined
-											}
-											className={`mt-1 w-full rounded-lg border ${fieldErrors.organizer ? "border-rose-300/60" : "border-white/10"} bg-black/20 p-2`}
-										/>
-										{fieldIssue("organizer")}
-									</label>
-									<label className="text-sm sm:col-span-2">
-										Official URL
-										<input
-											id="event-field-websiteUrl"
-											required
-											type="url"
-											value={draft.websiteUrl}
-											onChange={(event) =>
-												setField("websiteUrl", event.target.value)
-											}
-											aria-invalid={Boolean(fieldErrors.websiteUrl)}
-											aria-describedby={
-												fieldErrors.websiteUrl
-													? "event-error-websiteUrl"
-													: undefined
-											}
-											className={`mt-1 w-full rounded-lg border ${fieldErrors.websiteUrl ? "border-rose-300/60" : "border-white/10"} bg-black/20 p-2`}
-										/>
-										{fieldIssue("websiteUrl")}
-									</label>
-									<div className="text-sm sm:col-span-2">
-										<label>
-											Banner image URL (optional)
+									<form
+										onSubmit={(event) => {
+											event.preventDefault();
+											void submit(
+												isCreating
+													? "create"
+													: activeTab === "edit"
+														? "update"
+														: "save",
+											);
+										}}
+										className="grid gap-4 sm:grid-cols-2"
+									>
+										<label className="text-sm">
+											Title
 											<input
-												id="event-field-bannerUrl"
-												type="url"
-												value={draft.bannerUrl ?? ""}
-												placeholder="https://…"
+												id="event-field-title"
+												required
+												value={draft.title}
 												onChange={(event) =>
-													setField("bannerUrl", event.target.value || null)
+													setField("title", event.target.value)
 												}
-												aria-invalid={Boolean(fieldErrors.bannerUrl)}
+												aria-invalid={Boolean(fieldErrors.title)}
 												aria-describedby={
-													fieldErrors.bannerUrl
-														? "event-error-bannerUrl"
+													fieldErrors.title ? "event-error-title" : undefined
+												}
+												className={`mt-1 w-full rounded-lg border ${fieldErrors.title ? "border-rose-300/60" : "border-white/10"} bg-black/20 p-2`}
+											/>
+											{fieldIssue("title")}
+										</label>
+										<label className="text-sm">
+											Organizer
+											<input
+												id="event-field-organizer"
+												required
+												value={draft.organizer}
+												onChange={(event) =>
+													setField("organizer", event.target.value)
+												}
+												aria-invalid={Boolean(fieldErrors.organizer)}
+												aria-describedby={
+													fieldErrors.organizer
+														? "event-error-organizer"
 														: undefined
 												}
-												className={`mt-1 w-full rounded-lg border ${fieldErrors.bannerUrl ? "border-rose-300/60" : "border-white/10"} bg-black/20 p-2`}
+												className={`mt-1 w-full rounded-lg border ${fieldErrors.organizer ? "border-rose-300/60" : "border-white/10"} bg-black/20 p-2`}
 											/>
-											{fieldIssue("bannerUrl")}
+											{fieldIssue("organizer")}
 										</label>
-										<span className="mt-2 flex flex-wrap items-center gap-3">
-											<label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-white/15 px-3 py-2 text-xs hover:bg-white/5">
+										<label className="text-sm sm:col-span-2">
+											Official URL
+											<input
+												id="event-field-websiteUrl"
+												required
+												type="url"
+												value={draft.websiteUrl}
+												onChange={(event) =>
+													setField("websiteUrl", event.target.value)
+												}
+												aria-invalid={Boolean(fieldErrors.websiteUrl)}
+												aria-describedby={
+													fieldErrors.websiteUrl
+														? "event-error-websiteUrl"
+														: undefined
+												}
+												className={`mt-1 w-full rounded-lg border ${fieldErrors.websiteUrl ? "border-rose-300/60" : "border-white/10"} bg-black/20 p-2`}
+											/>
+											{fieldIssue("websiteUrl")}
+										</label>
+										<div className="text-sm sm:col-span-2">
+											<label>
+												Banner image URL (optional)
 												<input
-													className="sr-only"
-													type="file"
-													accept="image/png,image/jpeg,image/webp,image/avif"
-													disabled={bannerUploading || busy}
-													onChange={(event) => {
-														void uploadBanner(event.target.files?.[0]);
-														event.currentTarget.value = "";
-													}}
+													id="event-field-bannerUrl"
+													type="url"
+													value={draft.bannerUrl ?? ""}
+													placeholder="https://…"
+													onChange={(event) =>
+														setField("bannerUrl", event.target.value || null)
+													}
+													aria-invalid={Boolean(fieldErrors.bannerUrl)}
+													aria-describedby={
+														fieldErrors.bannerUrl
+															? "event-error-bannerUrl"
+															: undefined
+													}
+													className={`mt-1 w-full rounded-lg border ${fieldErrors.bannerUrl ? "border-rose-300/60" : "border-white/10"} bg-black/20 p-2`}
 												/>
-												{bannerUploading && (
-													<LoaderCircle className="animate-spin" size={14} />
-												)}
-												{bannerUploading
-													? "Uploading banner…"
-													: "Upload banner"}
+												{fieldIssue("bannerUrl")}
 											</label>
-											<p className="mt-1 text-xs text-slate-500">
-												No custom image? Radar automatically shows a DeScience
-												branded banner using the event title and organizer.
-											</p>
-											<span className="text-xs text-slate-500">
-												PNG, JPG, WebP or AVIF · max 5 MB
+											<span className="mt-2 flex flex-wrap items-center gap-3">
+												<label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-white/15 px-3 py-2 text-xs hover:bg-white/5">
+													<input
+														className="sr-only"
+														type="file"
+														accept="image/png,image/jpeg,image/webp,image/avif"
+														disabled={bannerUploading || busy}
+														onChange={(event) => {
+															void uploadBanner(event.target.files?.[0]);
+															event.currentTarget.value = "";
+														}}
+													/>
+													{bannerUploading && (
+														<LoaderCircle className="animate-spin" size={14} />
+													)}
+													{bannerUploading
+														? "Uploading banner…"
+														: "Upload banner"}
+												</label>
+												<p className="mt-1 text-xs text-slate-500">
+													No custom image? Radar automatically shows a DeScience
+													branded banner using the event title and organizer.
+												</p>
+												<span className="text-xs text-slate-500">
+													PNG, JPG, WebP or AVIF · max 5 MB
+												</span>
 											</span>
-										</span>
-										<div
-											role="img"
-											aria-label={
-												draft.bannerUrl
-													? "Event banner preview"
-													: "Automatic DeScience banner preview; no custom banner selected"
-											}
-											className={`relative mt-3 flex h-32 w-full items-end overflow-hidden rounded-lg border border-white/10 bg-cover bg-center p-4 ${draft.bannerUrl ? "" : "bg-[radial-gradient(ellipse_at_top_left,rgba(34,211,238,0.28),transparent_62%),radial-gradient(ellipse_at_bottom_right,rgba(139,92,246,0.22),transparent_60%),linear-gradient(135deg,#1d2730,#181721)]"}`}
-											style={
-												draft.bannerUrl
-													? { backgroundImage: `url("${draft.bannerUrl}")` }
-													: undefined
-											}
-										>
-											{draft.bannerUrl && (
-												<span
-													aria-hidden="true"
-													className="absolute inset-0 bg-black/30"
-												/>
-											)}
-											<div className="relative min-w-0">
-												<p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-100/80">
-													DeScience Events
-												</p>
-												<p className="mt-1 line-clamp-1 text-lg font-semibold text-white">
-													{draft.title || "Your event title"}
-												</p>
-												<p className="mt-0.5 line-clamp-1 text-xs text-white/75">
-													{draft.organizer || "Organizer"}
-												</p>
+											<div
+												role="img"
+												aria-label={
+													draft.bannerUrl
+														? "Event banner preview"
+														: "Automatic DeScience banner preview; no custom banner selected"
+												}
+												className={`relative mt-3 flex h-32 w-full items-end overflow-hidden rounded-lg border border-white/10 bg-cover bg-center p-4 ${draft.bannerUrl ? "" : "bg-[radial-gradient(ellipse_at_top_left,rgba(34,211,238,0.28),transparent_62%),radial-gradient(ellipse_at_bottom_right,rgba(139,92,246,0.22),transparent_60%),linear-gradient(135deg,#1d2730,#181721)]"}`}
+												style={
+													draft.bannerUrl
+														? { backgroundImage: `url("${draft.bannerUrl}")` }
+														: undefined
+												}
+											>
+												{draft.bannerUrl && (
+													<span
+														aria-hidden="true"
+														className="absolute inset-0 bg-black/30"
+													/>
+												)}
+												<div className="relative min-w-0">
+													<p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-100/80">
+														DeScience Events
+													</p>
+													<p className="mt-1 line-clamp-1 text-lg font-semibold text-white">
+														{draft.title || "Your event title"}
+													</p>
+													<p className="mt-0.5 line-clamp-1 text-xs text-white/75">
+														{draft.organizer || "Organizer"}
+													</p>
+												</div>
 											</div>
 										</div>
-									</div>
-									<label className="text-sm sm:col-span-2">
-										Description
-										<textarea
-											id="event-field-description"
-											rows={4}
-											value={draft.description}
-											onChange={(event) =>
-												setField("description", event.target.value)
-											}
-											aria-invalid={Boolean(fieldErrors.description)}
-											aria-describedby={
-												fieldErrors.description
-													? "event-error-description"
-													: undefined
-											}
-											className={`mt-1 w-full rounded-lg border ${fieldErrors.description ? "border-rose-300/60" : "border-white/10"} bg-black/20 p-2`}
-										/>
-										{fieldIssue("description")}
-									</label>
-									<label className="text-sm">
-										Format
-										<select
-											id="event-field-format"
-											value={draft.format}
-											onChange={(event) =>
-												setField(
-													"format",
-													event.target.value === "online"
-														? "online"
-														: event.target.value === "hybrid"
-															? "hybrid"
-															: "in-person",
-												)
-											}
-											aria-invalid={Boolean(fieldErrors.format)}
-											aria-describedby={
-												fieldErrors.format ? "event-error-format" : undefined
-											}
-											className={`mt-1 w-full rounded-lg border ${fieldErrors.format ? "border-rose-300/60" : "border-white/10"} bg-[#181d25] p-2`}
-										>
-											<option value="online">Online</option>
-											<option value="in-person">In person</option>
-											<option value="hybrid">Hybrid</option>
-										</select>
-										{fieldIssue("format")}
-									</label>
-									<label className="text-sm">
-										Registration status
-										<select
-											id="event-field-applicationStatus"
-											value={draft.applicationStatus}
-											onChange={(event) =>
-												setField(
-													"applicationStatus",
-													event.target.value === "open"
-														? "open"
-														: event.target.value === "upcoming"
-															? "upcoming"
-															: event.target.value === "closed"
-																? "closed"
-																: "ended",
-												)
-											}
-											aria-invalid={Boolean(fieldErrors.applicationStatus)}
-											aria-describedby={
-												fieldErrors.applicationStatus
-													? "event-error-applicationStatus"
-													: undefined
-											}
-											className={`mt-1 w-full rounded-lg border ${fieldErrors.applicationStatus ? "border-rose-300/60" : "border-white/10"} bg-[#181d25] p-2`}
-										>
-											<option value="open">Open</option>
-											<option value="upcoming">Upcoming</option>
-											<option value="closed">Closed</option>
-											<option value="ended">Ended</option>
-										</select>
-										{fieldIssue("applicationStatus")}
-									</label>
-									<label className="text-sm">
-										City
-										<input
-											id="event-field-venueCity"
-											value={draft.venueCity ?? ""}
-											onChange={(event) =>
-												setField("venueCity", event.target.value || null)
-											}
-											aria-invalid={Boolean(fieldErrors.venueCity)}
-											aria-describedby={
-												fieldErrors.venueCity
-													? "event-error-venueCity"
-													: undefined
-											}
-											className={`mt-1 w-full rounded-lg border ${fieldErrors.venueCity ? "border-rose-300/60" : "border-white/10"} bg-black/20 p-2`}
-										/>
-										{fieldIssue("venueCity")}
-									</label>
-									<label className="text-sm">
-										Country
-										<input
-											id="event-field-venueCountry"
-											value={draft.venueCountry ?? ""}
-											onChange={(event) =>
-												setField("venueCountry", event.target.value || null)
-											}
-											aria-invalid={Boolean(fieldErrors.venueCountry)}
-											aria-describedby={
-												fieldErrors.venueCountry
-													? "event-error-venueCountry"
-													: undefined
-											}
-											className={`mt-1 w-full rounded-lg border ${fieldErrors.venueCountry ? "border-rose-300/60" : "border-white/10"} bg-black/20 p-2`}
-										/>
-										{fieldIssue("venueCountry")}
-									</label>
-									<label className="text-sm">
-										Starts
-										<input
-											id="event-field-startDate"
-											required
-											type="datetime-local"
-											value={draft.startDate}
-											onChange={(event) =>
-												setField("startDate", event.target.value)
-											}
-											aria-invalid={Boolean(fieldErrors.startDate)}
-											aria-describedby={
-												fieldErrors.startDate
-													? "event-error-startDate"
-													: undefined
-											}
-											className={`mt-1 w-full rounded-lg border ${fieldErrors.startDate ? "border-rose-300/60" : "border-white/10"} bg-black/20 p-2`}
-										/>
-										{fieldIssue("startDate")}
-									</label>
-									<label className="text-sm">
-										Ends
-										<input
-											id="event-field-endDate"
-											required
-											type="datetime-local"
-											value={draft.endDate}
-											onChange={(event) =>
-												setField("endDate", event.target.value)
-											}
-											aria-invalid={Boolean(fieldErrors.endDate)}
-											aria-describedby={
-												fieldErrors.endDate ? "event-error-endDate" : undefined
-											}
-											className={`mt-1 w-full rounded-lg border ${fieldErrors.endDate ? "border-rose-300/60" : "border-white/10"} bg-black/20 p-2`}
-										/>
-										{fieldIssue("endDate")}
-									</label>
-									<label className="text-sm">
-										Registration deadline
-										<input
-											id="event-field-registrationDeadline"
-											type="datetime-local"
-											value={draft.registrationDeadline ?? ""}
-											onChange={(event) =>
-												setField(
-													"registrationDeadline",
-													event.target.value || null,
-												)
-											}
-											aria-invalid={Boolean(fieldErrors.registrationDeadline)}
-											aria-describedby={
-												fieldErrors.registrationDeadline
-													? "event-error-registrationDeadline"
-													: undefined
-											}
-											className={`mt-1 w-full rounded-lg border ${fieldErrors.registrationDeadline ? "border-rose-300/60" : "border-white/10"} bg-black/20 p-2`}
-										/>
-										{fieldIssue("registrationDeadline")}
-									</label>
-									<div className="grid grid-cols-2 gap-2">
-										<label className="text-sm">
-											Currency
-											<input
-												id="event-field-prizeCurrency"
-												maxLength={3}
-												value={draft.prizeCurrency}
+										<div className="grid gap-2 text-sm sm:col-span-2">
+											<div className="flex flex-wrap items-center justify-between gap-2">
+												<label htmlFor="event-field-description">
+													Description
+												</label>
+												{!isCreating && !draft.description.trim() && (
+													<button
+														type="button"
+														onClick={() => void generateDescription()}
+														disabled={generatingDescription || busy}
+														className="inline-flex items-center gap-2 rounded-lg border border-violet-300/25 bg-violet-300/10 px-3 py-2 text-xs font-semibold text-violet-100 transition hover:bg-violet-300/15 disabled:cursor-wait disabled:opacity-60"
+													>
+														{generatingDescription ? (
+															<LoaderCircle
+																className="animate-spin"
+																size={14}
+															/>
+														) : null}
+														{generatingDescription
+															? "Drafting with Ollama…"
+															: "Draft description with Ollama"}
+													</button>
+												)}
+											</div>
+											<textarea
+												id="event-field-description"
+												rows={4}
+												value={draft.description}
 												onChange={(event) =>
-													setField(
-														"prizeCurrency",
-														event.target.value.toUpperCase(),
-													)
+													setField("description", event.target.value)
 												}
-												aria-invalid={Boolean(fieldErrors.prizeCurrency)}
+												aria-invalid={Boolean(fieldErrors.description)}
 												aria-describedby={
-													fieldErrors.prizeCurrency
-														? "event-error-prizeCurrency"
+													fieldErrors.description
+														? "event-error-description"
 														: undefined
 												}
-												className={`mt-1 w-full rounded-lg border ${fieldErrors.prizeCurrency ? "border-rose-300/60" : "border-white/10"} bg-black/20 p-2`}
+												className={`mt-1 w-full rounded-lg border ${fieldErrors.description ? "border-rose-300/60" : "border-white/10"} bg-black/20 p-2`}
 											/>
-											{fieldIssue("prizeCurrency")}
-										</label>
+											{fieldIssue("description")}
+											{!isCreating && (
+												<p className="mt-1 text-xs text-slate-500">
+													Ollama only drafts on request. Verify all claims
+													against the official event page; the draft is not
+													saved or published until you submit this form.
+												</p>
+											)}
+										</div>
 										<label className="text-sm">
-											Prize value
-											<input
-												id="event-field-totalPrizeValue"
-												type="number"
-												min={0}
-												value={draft.totalPrizeValue}
+											Format
+											<select
+												id="event-field-format"
+												value={draft.format}
 												onChange={(event) =>
 													setField(
-														"totalPrizeValue",
-														Number(event.target.value),
+														"format",
+														event.target.value === "online"
+															? "online"
+															: event.target.value === "hybrid"
+																? "hybrid"
+																: "in-person",
 													)
 												}
-												aria-invalid={Boolean(fieldErrors.totalPrizeValue)}
+												aria-invalid={Boolean(fieldErrors.format)}
 												aria-describedby={
-													fieldErrors.totalPrizeValue
-														? "event-error-totalPrizeValue"
+													fieldErrors.format ? "event-error-format" : undefined
+												}
+												className={`mt-1 w-full rounded-lg border ${fieldErrors.format ? "border-rose-300/60" : "border-white/10"} bg-[#181d25] p-2`}
+											>
+												<option value="online">Online</option>
+												<option value="in-person">In person</option>
+												<option value="hybrid">Hybrid</option>
+											</select>
+											{fieldIssue("format")}
+										</label>
+										<label className="text-sm">
+											Registration status
+											<select
+												id="event-field-applicationStatus"
+												value={draft.applicationStatus}
+												onChange={(event) =>
+													setField(
+														"applicationStatus",
+														event.target.value === "open"
+															? "open"
+															: event.target.value === "upcoming"
+																? "upcoming"
+																: event.target.value === "closed"
+																	? "closed"
+																	: "ended",
+													)
+												}
+												aria-invalid={Boolean(fieldErrors.applicationStatus)}
+												aria-describedby={
+													fieldErrors.applicationStatus
+														? "event-error-applicationStatus"
 														: undefined
 												}
-												className={`mt-1 w-full rounded-lg border ${fieldErrors.totalPrizeValue ? "border-rose-300/60" : "border-white/10"} bg-black/20 p-2`}
-											/>
-											{fieldIssue("totalPrizeValue")}
+												className={`mt-1 w-full rounded-lg border ${fieldErrors.applicationStatus ? "border-rose-300/60" : "border-white/10"} bg-[#181d25] p-2`}
+											>
+												<option value="open">Open</option>
+												<option value="upcoming">Upcoming</option>
+												<option value="closed">Closed</option>
+												<option value="ended">Ended</option>
+											</select>
+											{fieldIssue("applicationStatus")}
 										</label>
-									</div>
-									<div className="flex flex-wrap gap-2 border-t border-white/10 pt-5 sm:col-span-2">
-										{isCreating ? (
-											<>
-												<button
-													disabled={busy}
-													type="submit"
-													aria-busy={busyAction === "create"}
-													className="inline-flex items-center gap-2 rounded-xl bg-emerald-300 px-4 py-2 text-sm font-semibold text-slate-950"
-												>
-													{busyAction === "create" && (
-														<LoaderCircle className="animate-spin" size={15} />
-													)}
-													{busyAction === "create"
-														? "Adding…"
-														: "Add to review queue"}
-												</button>
-												<button
-													disabled={busy}
-													type="button"
-													onClick={cancelManualEntry}
-													className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm"
-												>
-													<X size={15} /> Cancel
-												</button>
-											</>
-										) : (
-											<>
-												<button
-													disabled={busy}
-													type="submit"
-													aria-busy={busyAction === "save"}
-													className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm"
-												>
-													{busyAction === "save" && (
-														<LoaderCircle className="animate-spin" size={15} />
-													)}
-													{busyAction === "save"
-														? "Saving…"
-														: "Save corrections"}
-												</button>
-												<button
-													disabled={busy}
-													type="button"
-													onClick={() => void submit("approve")}
-													className="inline-flex items-center gap-2 rounded-xl bg-emerald-300 px-4 py-2 text-sm font-semibold text-slate-950"
-													aria-busy={busyAction === "approve"}
-												>
-													{busyAction === "approve" ? (
-														<LoaderCircle className="animate-spin" size={15} />
+										<label className="text-sm">
+											City
+											<input
+												id="event-field-venueCity"
+												value={draft.venueCity ?? ""}
+												onChange={(event) =>
+													setField("venueCity", event.target.value || null)
+												}
+												aria-invalid={Boolean(fieldErrors.venueCity)}
+												aria-describedby={
+													fieldErrors.venueCity
+														? "event-error-venueCity"
+														: undefined
+												}
+												className={`mt-1 w-full rounded-lg border ${fieldErrors.venueCity ? "border-rose-300/60" : "border-white/10"} bg-black/20 p-2`}
+											/>
+											{fieldIssue("venueCity")}
+										</label>
+										<label className="text-sm">
+											Country
+											<input
+												id="event-field-venueCountry"
+												value={draft.venueCountry ?? ""}
+												onChange={(event) =>
+													setField("venueCountry", event.target.value || null)
+												}
+												aria-invalid={Boolean(fieldErrors.venueCountry)}
+												aria-describedby={
+													fieldErrors.venueCountry
+														? "event-error-venueCountry"
+														: undefined
+												}
+												className={`mt-1 w-full rounded-lg border ${fieldErrors.venueCountry ? "border-rose-300/60" : "border-white/10"} bg-black/20 p-2`}
+											/>
+											{fieldIssue("venueCountry")}
+										</label>
+										<label className="text-sm">
+											Starts
+											<input
+												id="event-field-startDate"
+												required
+												type="datetime-local"
+												value={draft.startDate}
+												onChange={(event) =>
+													setField("startDate", event.target.value)
+												}
+												aria-invalid={Boolean(fieldErrors.startDate)}
+												aria-describedby={
+													fieldErrors.startDate
+														? "event-error-startDate"
+														: undefined
+												}
+												className={`mt-1 w-full rounded-lg border ${fieldErrors.startDate ? "border-rose-300/60" : "border-white/10"} bg-black/20 p-2`}
+											/>
+											{fieldIssue("startDate")}
+										</label>
+										<label className="text-sm">
+											Ends
+											<input
+												id="event-field-endDate"
+												required
+												type="datetime-local"
+												value={draft.endDate}
+												onChange={(event) =>
+													setField("endDate", event.target.value)
+												}
+												aria-invalid={Boolean(fieldErrors.endDate)}
+												aria-describedby={
+													fieldErrors.endDate
+														? "event-error-endDate"
+														: undefined
+												}
+												className={`mt-1 w-full rounded-lg border ${fieldErrors.endDate ? "border-rose-300/60" : "border-white/10"} bg-black/20 p-2`}
+											/>
+											{fieldIssue("endDate")}
+										</label>
+										<label className="text-sm">
+											Registration deadline
+											<input
+												id="event-field-registrationDeadline"
+												type="datetime-local"
+												value={draft.registrationDeadline ?? ""}
+												onChange={(event) =>
+													setField(
+														"registrationDeadline",
+														event.target.value || null,
+													)
+												}
+												aria-invalid={Boolean(fieldErrors.registrationDeadline)}
+												aria-describedby={
+													fieldErrors.registrationDeadline
+														? "event-error-registrationDeadline"
+														: undefined
+												}
+												className={`mt-1 w-full rounded-lg border ${fieldErrors.registrationDeadline ? "border-rose-300/60" : "border-white/10"} bg-black/20 p-2`}
+											/>
+											{fieldIssue("registrationDeadline")}
+										</label>
+										<div className="grid grid-cols-2 gap-2">
+											<label className="text-sm">
+												Currency
+												<input
+													id="event-field-prizeCurrency"
+													maxLength={3}
+													value={draft.prizeCurrency}
+													onChange={(event) =>
+														setField(
+															"prizeCurrency",
+															event.target.value.toUpperCase(),
+														)
+													}
+													aria-invalid={Boolean(fieldErrors.prizeCurrency)}
+													aria-describedby={
+														fieldErrors.prizeCurrency
+															? "event-error-prizeCurrency"
+															: undefined
+													}
+													className={`mt-1 w-full rounded-lg border ${fieldErrors.prizeCurrency ? "border-rose-300/60" : "border-white/10"} bg-black/20 p-2`}
+												/>
+												{fieldIssue("prizeCurrency")}
+											</label>
+											<label className="text-sm">
+												Prize value
+												<input
+													id="event-field-totalPrizeValue"
+													type="number"
+													min={0}
+													value={draft.totalPrizeValue}
+													onChange={(event) =>
+														setField(
+															"totalPrizeValue",
+															Number(event.target.value),
+														)
+													}
+													aria-invalid={Boolean(fieldErrors.totalPrizeValue)}
+													aria-describedby={
+														fieldErrors.totalPrizeValue
+															? "event-error-totalPrizeValue"
+															: undefined
+													}
+													className={`mt-1 w-full rounded-lg border ${fieldErrors.totalPrizeValue ? "border-rose-300/60" : "border-white/10"} bg-black/20 p-2`}
+												/>
+												{fieldIssue("totalPrizeValue")}
+											</label>
+										</div>
+										<p className="text-xs text-slate-500 sm:col-span-2">
+											Use the currency printed on the official event page (for
+											example, USD with 5000 for a US$5,000 prize). The amount
+											is never converted automatically.
+										</p>
+										<div className="flex flex-wrap gap-2 border-t border-white/10 pt-5 sm:col-span-2">
+											{isCreating ? (
+												<>
+													<button
+														disabled={busy}
+														type="submit"
+														aria-busy={busyAction === "create"}
+														className="inline-flex items-center gap-2 rounded-xl bg-emerald-300 px-4 py-2 text-sm font-semibold text-slate-950"
+													>
+														{busyAction === "create" && (
+															<LoaderCircle
+																className="animate-spin"
+																size={15}
+															/>
+														)}
+														{busyAction === "create"
+															? "Adding…"
+															: "Add to review queue"}
+													</button>
+													<button
+														disabled={busy}
+														type="button"
+														onClick={cancelManualEntry}
+														className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm"
+													>
+														<X size={15} /> Cancel
+													</button>
+												</>
+											) : (
+												<>
+													<button
+														disabled={busy}
+														type="submit"
+														aria-busy={
+															busyAction ===
+															(activeTab === "edit" ? "update" : "save")
+														}
+														className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm"
+													>
+														{busyAction ===
+															(activeTab === "edit" ? "update" : "save") && (
+															<LoaderCircle
+																className="animate-spin"
+																size={15}
+															/>
+														)}
+														{busyAction ===
+														(activeTab === "edit" ? "update" : "save")
+															? "Saving…"
+															: activeTab === "edit"
+																? "Save event changes"
+																: "Save corrections"}
+													</button>
+													{activeTab === "edit" ? (
+														<button
+															disabled={busy}
+															type="button"
+															onClick={() => setActiveTab("approved")}
+															className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm"
+														>
+															<X size={15} /> Cancel
+														</button>
 													) : (
-														<ShieldCheck size={16} />
+														<button
+															disabled={busy}
+															type="button"
+															onClick={() => void submit("approve")}
+															className="inline-flex items-center gap-2 rounded-xl bg-emerald-300 px-4 py-2 text-sm font-semibold text-slate-950"
+															aria-busy={busyAction === "approve"}
+														>
+															{busyAction === "approve" ? (
+																<LoaderCircle
+																	className="animate-spin"
+																	size={15}
+																/>
+															) : (
+																<ShieldCheck size={16} />
+															)}
+															{busyAction === "approve"
+																? "Publishing…"
+																: "Approve & publish"}
+														</button>
 													)}
-													{busyAction === "approve"
-														? "Publishing…"
-														: "Approve & publish"}
-												</button>
-												<button
-													disabled={busy}
-													type="button"
-													aria-busy={busyAction === "hide"}
-													onClick={() => void submit("hide")}
-													className="inline-flex items-center gap-2 rounded-xl border border-rose-400/20 px-4 py-2 text-sm text-rose-200"
-												>
-													{busyAction === "hide" && (
-														<LoaderCircle className="animate-spin" size={15} />
-													)}
-													{busyAction === "hide" ? "Hiding…" : "Hide event"}
-												</button>
-											</>
-										)}
-									</div>
-								</form>
-							</section>
-						</div>
-					)}
+													<button
+														disabled={busy}
+														type="button"
+														aria-busy={busyAction === "hide"}
+														onClick={() => void submit("hide")}
+														className="inline-flex items-center gap-2 rounded-xl border border-rose-400/20 px-4 py-2 text-sm text-rose-200"
+													>
+														{busyAction === "hide" && (
+															<LoaderCircle
+																className="animate-spin"
+																size={15}
+															/>
+														)}
+														{busyAction === "hide" ? "Hiding…" : "Hide event"}
+													</button>
+												</>
+											)}
+										</div>
+									</form>
+								</section>
+							</div>
+						)}
 				</div>
 			</main>
+			{previewEvent && (
+				<div className="fixed inset-0 z-[120] grid place-items-center bg-black/70 p-4 backdrop-blur-sm">
+					<section
+						role="dialog"
+						aria-modal="true"
+						aria-labelledby="event-preview-title"
+						className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/15 bg-[#151a24] p-6 shadow-2xl"
+					>
+						<div className="flex items-start justify-between gap-4">
+							<div>
+								<p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-200">
+									Published event preview
+								</p>
+								<h2
+									id="event-preview-title"
+									className="mt-2 text-2xl font-semibold"
+								>
+									{previewEvent.title}
+								</h2>
+								<p className="mt-1 text-sm text-slate-400">
+									Organized by {previewEvent.organizer}
+								</p>
+							</div>
+							<button
+								type="button"
+								onClick={() => setPreviewEvent(null)}
+								aria-label="Close event preview"
+								className="rounded-lg border border-white/10 p-2 hover:bg-white/5"
+							>
+								<X size={18} />
+							</button>
+						</div>
+						<div
+							role="img"
+							aria-label={
+								previewEvent.bannerUrl
+									? `${previewEvent.title} banner`
+									: "DeScience event banner artwork"
+							}
+							className="mt-5 flex h-36 items-end rounded-xl border border-white/10 bg-cover bg-center p-4"
+							style={
+								previewEvent.bannerUrl
+									? {
+											backgroundImage: `linear-gradient(0deg, rgba(0,0,0,.65), transparent), url("${previewEvent.bannerUrl}")`,
+										}
+									: {
+											backgroundImage:
+												"radial-gradient(ellipse at top left,rgba(34,211,238,.28),transparent 62%),radial-gradient(ellipse at bottom right,rgba(139,92,246,.22),transparent 60%),linear-gradient(135deg,#1d2730,#181721)",
+										}
+							}
+						>
+							<p className="text-lg font-semibold text-white">
+								{previewEvent.title}
+							</p>
+						</div>
+						<div className="mt-5 grid gap-3 sm:grid-cols-2">
+							<div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+								<p className="text-xs text-slate-400">Total prize pool</p>
+								<p className="mt-1 text-xl font-semibold text-amber-200">
+									{formatPrize(
+										previewEvent.prizeCurrency,
+										previewEvent.totalPrizeValue,
+									)}
+								</p>
+								<p className="text-xs text-slate-500">
+									Currency: {previewEvent.prizeCurrency}
+								</p>
+							</div>
+							<div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+								<p className="text-xs text-slate-400">
+									Dates · {previewEvent.format.replace("-", " ")}
+								</p>
+								<p className="mt-1 font-medium">
+									{shortDate(previewEvent.startDate)} –{" "}
+									{shortDate(previewEvent.endDate)}
+								</p>
+								<p className="mt-1 text-xs text-slate-400">
+									{previewEvent.format === "online"
+										? "Online"
+										: [previewEvent.venueCity, previewEvent.venueCountry]
+												.filter(Boolean)
+												.join(", ") || "Location not listed"}
+								</p>
+							</div>
+						</div>
+						<div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+							<h3 className="font-semibold">Description</h3>
+							<p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-300">
+								{previewEvent.description ||
+									"No description has been added yet."}
+							</p>
+						</div>
+						<a
+							href={previewEvent.websiteUrl}
+							target="_blank"
+							rel="noopener noreferrer"
+							className="mt-5 inline-flex items-center gap-2 rounded-xl bg-cyan-100 px-4 py-2.5 text-sm font-semibold text-slate-950"
+						>
+							Open official event <ExternalLink size={15} />
+						</a>
+					</section>
+				</div>
+			)}
 			<SpreadsheetImportDialog
 				open={bulkUploadOpen}
 				title="Import hackathon events"

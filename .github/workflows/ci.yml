@@ -93,7 +93,7 @@ jobs:
             const functions = summary.functions;
             const branches = summary.branches;
             const percent = (item) => `${item.pct.toFixed(1)}% (${item.covered}/${item.total})`;
-            const body = `${marker}\n## Vitest coverage\n\n| Measure | Coverage |\n| --- | ---: |\n| Lines | ${percent(lines)} |\n| Statements | ${percent(statements)} |\n| Functions | ${percent(functions)} |\n| Branches | ${percent(branches)} |\n\nFull LCOV and JSON summary are available in the `vitest-coverage` workflow artifact.`;
+            const body = `${marker}\n## Vitest coverage\n\n| Measure | Coverage |\n| --- | ---: |\n| Lines | ${percent(lines)} |\n| Statements | ${percent(statements)} |\n| Functions | ${percent(functions)} |\n| Branches | ${percent(branches)} |\n\nFull LCOV and JSON summary are available in the vitest-coverage workflow artifact.`;
             const issue_number = context.payload.pull_request.number;
             const { data: comments } = await github.rest.issues.listComments({
               ...context.repo,

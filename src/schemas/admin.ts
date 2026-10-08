@@ -122,7 +122,16 @@ export const studentMasterManualInputSchema = studentMasterRecordSchema
 	})
 	.strict();
 
+export const studentMasterUpdateSchema = z
+	.object({
+		id: z.string().uuid(),
+		student: studentMasterManualInputSchema,
+	})
+	.strict();
+
 export const studentMasterAdminRecordSchema = studentMasterRecordSchema.extend({
+	id: z.string().uuid(),
+	authLinked: z.boolean(),
 	batchYear: z.string().nullable(),
 	department: z.string().nullable(),
 	degree: z.string().nullable(),
