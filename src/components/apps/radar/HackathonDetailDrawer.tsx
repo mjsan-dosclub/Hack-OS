@@ -117,14 +117,14 @@ export function HackathonDetailDrawer({
 											month: "short",
 											day: "numeric",
 											year: "numeric",
-											timeZone: "UTC",
+											timeZone: "Asia/Kolkata",
 										}).format(new Date(event.startDate))}
 										<span aria-hidden="true">–</span>
 										{new Intl.DateTimeFormat("en", {
 											month: "short",
 											day: "numeric",
 											year: "numeric",
-											timeZone: "UTC",
+											timeZone: "Asia/Kolkata",
 										}).format(new Date(event.endDate))}
 									</span>
 									<span className="flex items-center gap-2 rounded-lg bg-black/15 p-2">
@@ -145,7 +145,7 @@ export function HackathonDetailDrawer({
 										{event.registrationDeadline
 											? new Intl.DateTimeFormat("en", {
 													dateStyle: "medium",
-													timeZone: "UTC",
+													timeZone: "Asia/Kolkata",
 												}).format(new Date(event.registrationDeadline))
 											: "Deadline not listed"}
 									</span>

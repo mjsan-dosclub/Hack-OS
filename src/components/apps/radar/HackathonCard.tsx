@@ -31,7 +31,7 @@ function formatDates(event: Hackathon): string {
 	const formatter = new Intl.DateTimeFormat("en", {
 		month: "short",
 		day: "numeric",
-		timeZone: "UTC",
+		timeZone: "Asia/Kolkata",
 	});
 	return `${formatter.format(new Date(event.startDate))} – ${formatter.format(new Date(event.endDate))}`;
 }
