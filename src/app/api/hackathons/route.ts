@@ -107,10 +107,10 @@ export async function GET() {
 			);
 		return NextResponse.json(result.data, {
 			headers: {
-				"Cache-Control":
-					"public, max-age=0, s-maxage=300, stale-while-revalidate=3600",
-				"Vercel-CDN-Cache-Control":
-					"public, s-maxage=300, stale-while-revalidate=3600",
+				// Event records can be edited by moderators; serve the latest verified
+				// values instead of letting an edge cache mask an admin correction.
+				"Cache-Control": "private, no-store, max-age=0, must-revalidate",
+				"Vercel-CDN-Cache-Control": "no-store",
 			},
 		});
 	} catch {

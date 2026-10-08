@@ -95,17 +95,59 @@ export function HackathonDetailDrawer({
 								<p className="mt-3 text-xs leading-5 text-white/65">
 									{event.description}
 								</p>
-								<div className="mt-4 grid grid-cols-2 gap-2 text-[10px] text-white/65">
+								<div className="mt-4 rounded-lg border border-amber-100/15 bg-amber-100/[0.06] p-3">
+									<p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-amber-100/65">
+										Total prize pool
+									</p>
+									<p className="mt-1 text-xl font-bold text-amber-100">
+										{new Intl.NumberFormat("en", {
+											style: "currency",
+											currency: event.prizeCurrency,
+											maximumFractionDigits: 0,
+										}).format(event.totalPrizeValue)}
+										<span className="ml-2 text-xs font-normal text-white/45">
+											{event.prizeCurrency} total prizes
+										</span>
+									</p>
+								</div>
+								<div className="mt-3 grid grid-cols-2 gap-2 text-[10px] text-white/65">
 									<span className="flex items-center gap-2 rounded-lg bg-black/15 p-2">
 										<CalendarDays className="size-3.5 text-cyan-100" />
 										{new Intl.DateTimeFormat("en", {
-											dateStyle: "medium",
-											timeZone: "UTC",
+											month: "short",
+											day: "numeric",
+											year: "numeric",
+											timeZone: "Asia/Kolkata",
 										}).format(new Date(event.startDate))}
+										<span aria-hidden="true">–</span>
+										{new Intl.DateTimeFormat("en", {
+											month: "short",
+											day: "numeric",
+											year: "numeric",
+											timeZone: "Asia/Kolkata",
+										}).format(new Date(event.endDate))}
 									</span>
 									<span className="flex items-center gap-2 rounded-lg bg-black/15 p-2">
 										<MapPin className="size-3.5 text-cyan-100" />
-										{event.venueCity ?? "Online"}
+										{event.format === "online"
+											? "Online · join anywhere"
+											: [event.venueCity, event.venueCountry]
+													.filter(Boolean)
+													.join(", ") || "Location to be announced"}
+									</span>
+									<span className="flex items-center gap-2 rounded-lg bg-black/15 p-2">
+										<Trophy className="size-3.5 text-amber-100" />
+										Status: {event.applicationStatus}
+									</span>
+									<span className="flex items-center gap-2 rounded-lg bg-black/15 p-2">
+										<CalendarDays className="size-3.5 text-cyan-100" />
+										Registration:{" "}
+										{event.registrationDeadline
+											? new Intl.DateTimeFormat("en", {
+													dateStyle: "medium",
+													timeZone: "Asia/Kolkata",
+												}).format(new Date(event.registrationDeadline))
+											: "Deadline not listed"}
 									</span>
 								</div>
 							</div>
