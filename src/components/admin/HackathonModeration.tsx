@@ -1690,12 +1690,12 @@ export function HackathonModeration() {
 				</div>
 			</main>
 			{previewEvent && (
-				<div className="fixed inset-0 z-[120] grid place-items-center bg-black/70 p-4 backdrop-blur-sm">
+				<div className="admin-modal-backdrop fixed inset-0 z-[120] grid place-items-center bg-black/70 p-4 backdrop-blur-sm">
 					<section
 						role="dialog"
 						aria-modal="true"
 						aria-labelledby="event-preview-title"
-						className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/15 bg-[#151a24] p-6 shadow-2xl"
+						className="admin-modal max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/15 bg-[#151a24] p-6 shadow-2xl"
 					>
 						<div className="flex items-start justify-between gap-4">
 							<div>
@@ -1728,7 +1728,7 @@ export function HackathonModeration() {
 									? `${previewEvent.title} banner`
 									: "DeScience event banner artwork"
 							}
-							className="mt-5 flex h-36 items-end rounded-xl border border-white/10 bg-cover bg-center p-4"
+							className="admin-modal-banner mt-5 flex h-36 items-end rounded-xl border border-white/10 bg-cover bg-center p-4"
 							style={
 								previewEvent.bannerUrl
 									? {
