@@ -104,7 +104,10 @@ export const bulkManualEventsResultSchema = z
 
 export const reviewActionSchema = z.discriminatedUnion("action", [
 	z
-		.object({ action: z.enum(["save", "approve"]), event: reviewEventSchema })
+		.object({
+			action: z.enum(["save", "approve", "update"]),
+			event: reviewEventSchema,
+		})
 		.strict(),
 	z.object({ action: z.literal("create"), event: manualEventSchema }).strict(),
 	z.object({ action: z.literal("hide"), id: z.string().uuid() }).strict(),
@@ -155,8 +158,10 @@ export const approvedEventsListSchema = z.object({
 		z.object({
 			id: z.string().uuid(),
 			title: z.string(),
+			description: z.string(),
 			organizer: z.string(),
 			websiteUrl: z.string().url(),
+			bannerUrl: z.string().url().nullable(),
 			format: z.enum(["online", "in-person", "hybrid"]),
 			venueCity: z.string().nullable(),
 			venueCountry: z.string().nullable(),
@@ -164,6 +169,8 @@ export const approvedEventsListSchema = z.object({
 			endDate: dateTime,
 			registrationDeadline: dateTime.nullable(),
 			applicationStatus: z.enum(["upcoming", "open", "closed", "ended"]),
+			prizeCurrency: z.string().regex(/^[A-Z]{3}$/),
+			totalPrizeValue: z.number().int().nonnegative(),
 			source: z.enum(["devpost", "devfolio", "unstop", "manual", "mlh"]),
 		}),
 	),
@@ -171,6 +178,28 @@ export const approvedEventsListSchema = z.object({
 	pageSize: z.number().int().min(1),
 	total: z.number().int().min(0),
 });
+
+export const adminDeleteIdsSchema = z
+	.object({
+		ids: z.array(z.string().uuid()).min(1).max(100),
+	})
+	.strict()
+	.superRefine((value, context) => {
+		if (new Set(value.ids).size !== value.ids.length) {
+			context.addIssue({
+				code: "custom",
+				path: ["ids"],
+				message: "Remove duplicate records from the selection.",
+			});
+		}
+	});
+
+export const generatedEventDescriptionSchema = z
+	.object({
+		id: z.string().uuid(),
+		description: z.string().trim().min(20).max(2_000),
+	})
+	.strict();
 
 export type ApprovedEvent = z.infer<
 	typeof approvedEventsListSchema

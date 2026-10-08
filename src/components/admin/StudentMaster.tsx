@@ -1,10 +1,15 @@
 "use client";
 
 import {
+	CheckSquare,
 	Download,
+	LoaderCircle,
+	Pencil,
 	Plus,
 	Search,
 	ShieldCheck,
+	Square,
+	Trash2,
 	UploadCloud,
 	UsersRound,
 } from "lucide-react";
@@ -159,6 +164,10 @@ export function StudentMaster() {
 	const [studentUploadOpen, setStudentUploadOpen] = useState(false);
 	const [savingManual, setSavingManual] = useState(false);
 	const [manualOpen, setManualOpen] = useState(false);
+	const [editingStudent, setEditingStudent] = useState<string | null>(null);
+	const [editingEmailLocked, setEditingEmailLocked] = useState(false);
+	const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+	const [deletingStudents, setDeletingStudents] = useState(false);
 	const [manualStudent, setManualStudent] =
 		useState<ManualStudentDraft>(emptyManualStudent);
 	const [error, setError] = useState("");
@@ -180,6 +189,11 @@ export function StudentMaster() {
 			if (!parsed.success)
 				throw new Error("The student roster response was invalid.");
 			setStudents(parsed.data.students);
+			setSelectedStudentIds((current) =>
+				current.filter((id) =>
+					parsed.data.students.some((student) => student.id === id),
+				),
+			);
 			setError("");
 		} catch (caught: unknown) {
 			setError(
@@ -262,23 +276,41 @@ export function StudentMaster() {
 		setLastImport(null);
 		try {
 			const response = await fetch("/api/admin/students", {
-				method: "POST",
+				method: editingStudent ? "PATCH" : "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(manualStudent),
+				body: JSON.stringify(
+					editingStudent
+						? { id: editingStudent, student: manualStudent }
+						: manualStudent,
+				),
 			});
 			if (!response.ok) throw new Error(await responseError(response));
-			const parsed = studentMasterUploadResultSchema.safeParse(
-				await response.json(),
-			);
-			if (!parsed.success)
-				throw new Error("The student record response was invalid.");
-			setMessage(
-				`${parsed.data.students[0]?.fullName ?? "Student"} was added to the master roster.`,
-			);
+			if (editingStudent) {
+				const result: unknown = await response.json();
+				if (
+					typeof result !== "object" ||
+					result === null ||
+					!("status" in result) ||
+					result.status !== "updated"
+				)
+					throw new Error("The student record response was invalid.");
+				setMessage(`${manualStudent.fullName} was updated.`);
+			} else {
+				const parsed = studentMasterUploadResultSchema.safeParse(
+					await response.json(),
+				);
+				if (!parsed.success)
+					throw new Error("The student record response was invalid.");
+				setMessage(
+					`${parsed.data.students[0]?.fullName ?? "Student"} was added to the master roster.`,
+				);
+			}
 			setImportIssues([]);
 			setLastImport(null);
 			setManualStudent(emptyManualStudent);
 			setManualOpen(false);
+			setEditingStudent(null);
+			setEditingEmailLocked(false);
 			await refresh();
 		} catch (caught: unknown) {
 			setError(
@@ -288,6 +320,102 @@ export function StudentMaster() {
 			);
 		} finally {
 			setSavingManual(false);
+		}
+	}
+
+	function beginStudentEdit(student: Student) {
+		setEditingStudent(student.id);
+		setEditingEmailLocked(student.authLinked);
+		setManualStudent({
+			fullName: student.fullName,
+			email: student.email,
+			batchYear: student.batchYear ?? "",
+			collegeName: student.collegeName ?? "",
+			department: student.department ?? "",
+			degree: student.degree ?? "",
+			gender: student.gender ?? "",
+			membershipStatus: student.membershipStatus,
+		});
+		setManualOpen(true);
+		setError("");
+		setMessage("");
+	}
+
+	function toggleManualForm() {
+		if (manualOpen) {
+			setManualOpen(false);
+			setEditingStudent(null);
+			setEditingEmailLocked(false);
+			setManualStudent(emptyManualStudent);
+			return;
+		}
+		setEditingStudent(null);
+		setEditingEmailLocked(false);
+		setManualStudent(emptyManualStudent);
+		setManualOpen(true);
+	}
+
+	function toggleStudent(id: string) {
+		setSelectedStudentIds((current) =>
+			current.includes(id)
+				? current.filter((value) => value !== id)
+				: current.length < 100
+					? [...current, id]
+					: current,
+		);
+	}
+
+	function toggleVisibleStudents() {
+		const ids = filteredStudents.map((student) => student.id);
+		const allSelected =
+			ids.length > 0 && ids.every((id) => selectedStudentIds.includes(id));
+		setSelectedStudentIds((current) =>
+			allSelected
+				? current.filter((id) => !ids.includes(id))
+				: [...new Set([...current, ...ids].slice(0, 100))],
+		);
+	}
+
+	async function deleteSelectedStudents() {
+		if (selectedStudentIds.length === 0) return;
+		const count = selectedStudentIds.length;
+		if (
+			!window.confirm(
+				`Permanently delete ${count} selected student ${count === 1 ? "record" : "records"}? Linked assessment records for these students will also be removed. This does not delete their Supabase login account.`,
+			)
+		)
+			return;
+		setDeletingStudents(true);
+		setError("");
+		setMessage("");
+		try {
+			const response = await fetch("/api/admin/students", {
+				method: "DELETE",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ ids: selectedStudentIds }),
+			});
+			if (!response.ok) throw new Error(await responseError(response));
+			const result: unknown = await response.json();
+			if (
+				typeof result !== "object" ||
+				result === null ||
+				!("deletedCount" in result) ||
+				typeof result.deletedCount !== "number"
+			)
+				throw new Error("The delete response was invalid.");
+			setSelectedStudentIds([]);
+			setMessage(
+				`${result.deletedCount} student ${result.deletedCount === 1 ? "record" : "records"} deleted.`,
+			);
+			await refresh();
+		} catch (caught) {
+			setError(
+				caught instanceof Error
+					? caught.message
+					: "Could not delete selected students.",
+			);
+		} finally {
+			setDeletingStudents(false);
 		}
 	}
 
@@ -356,7 +484,7 @@ export function StudentMaster() {
 							<div className="flex flex-wrap items-center gap-2">
 								<button
 									type="button"
-									onClick={() => setManualOpen((open) => !open)}
+									onClick={toggleManualForm}
 									aria-expanded={manualOpen}
 									className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/10 px-4 py-2 text-sm font-medium text-white/80 transition hover:border-cyan-200/30 hover:bg-white/5"
 								>
@@ -377,11 +505,21 @@ export function StudentMaster() {
 								className="mt-5 rounded-xl border border-cyan-200/15 bg-black/10 p-4 sm:p-5"
 							>
 								<div className="mb-4">
-									<h3 className="font-semibold">Add a student manually</h3>
+									<h3 className="font-semibold">
+										{editingStudent
+											? "Edit student record"
+											: "Add a student manually"}
+									</h3>
 									<p className="mt-1 text-xs text-white/45">
 										All seven master fields are required. The email address is
 										the member’s sign-in identity.
 									</p>
+									{editingEmailLocked && (
+										<p className="mt-2 text-xs text-amber-200">
+											This student has a linked sign-in. Email is locked to
+											protect account access.
+										</p>
+									)}
 								</div>
 								<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
 									{manualFields.map(([key, label, type]) => (
@@ -393,6 +531,7 @@ export function StudentMaster() {
 											<input
 												required
 												type={type}
+												disabled={key === "email" && editingEmailLocked}
 												value={manualStudent[key]}
 												onChange={(event) =>
 													updateManualStudent(key, event.target.value)
@@ -424,7 +563,12 @@ export function StudentMaster() {
 								<div className="mt-4 flex justify-end gap-2">
 									<button
 										type="button"
-										onClick={() => setManualOpen(false)}
+										onClick={() => {
+											setManualOpen(false);
+											setEditingStudent(null);
+											setEditingEmailLocked(false);
+											setManualStudent(emptyManualStudent);
+										}}
 										disabled={savingManual}
 										className="min-h-10 rounded-lg border border-white/10 px-4 text-sm text-white/65 transition hover:bg-white/5 disabled:opacity-50"
 									>
@@ -436,7 +580,11 @@ export function StudentMaster() {
 										aria-busy={savingManual}
 										className="min-h-10 rounded-lg bg-cyan-200 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-100 disabled:cursor-wait disabled:opacity-60"
 									>
-										{savingManual ? "Saving student…" : "Save student"}
+										{savingManual
+											? "Saving student…"
+											: editingStudent
+												? "Save changes"
+												: "Save student"}
 									</button>
 								</div>
 							</form>
@@ -548,6 +696,32 @@ export function StudentMaster() {
 								className="w-full rounded-xl border border-white/10 bg-black/15 py-2.5 pl-10 pr-3 text-sm outline-none transition placeholder:text-white/30 focus:border-cyan-200/40"
 							/>
 						</div>
+						{selectedStudentIds.length > 0 && (
+							<div
+								className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-300/20 bg-rose-300/[0.06] px-4 py-3"
+								role="status"
+							>
+								<p className="text-sm text-white/75">
+									{selectedStudentIds.length} selected{" "}
+									<span className="text-xs text-white/45">
+										(up to 100 records per deletion)
+									</span>
+								</p>
+								<button
+									type="button"
+									onClick={() => void deleteSelectedStudents()}
+									disabled={deletingStudents}
+									className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-rose-200/25 px-3 text-sm font-semibold text-rose-100 transition hover:bg-rose-300/10 disabled:cursor-wait disabled:opacity-60"
+								>
+									{deletingStudents ? (
+										<LoaderCircle className="animate-spin" size={15} />
+									) : (
+										<Trash2 size={15} />
+									)}
+									{deletingStudents ? "Deleting…" : "Delete selected"}
+								</button>
+							</div>
+						)}
 						{loading ? (
 							<AdminSkeleton kind="students" />
 						) : (
@@ -555,12 +729,30 @@ export function StudentMaster() {
 								<table className="w-full min-w-[1050px] border-collapse text-left text-sm">
 									<thead className="bg-white/[0.035] text-xs uppercase tracking-wide text-white/45">
 										<tr>
+											<th className="w-12 px-4 py-3">
+												<button
+													type="button"
+													aria-label="Select or clear visible students"
+													onClick={toggleVisibleStudents}
+													className="rounded p-1 hover:bg-white/10"
+												>
+													{filteredStudents.length > 0 &&
+													filteredStudents.every((student) =>
+														selectedStudentIds.includes(student.id),
+													) ? (
+														<CheckSquare size={17} />
+													) : (
+														<Square size={17} />
+													)}
+												</button>
+											</th>
 											<th className="px-4 py-3">Student</th>
 											<th className="px-4 py-3">College</th>
 											<th className="px-4 py-3">Department / degree</th>
 											<th className="px-4 py-3">Batch</th>
 											<th className="px-4 py-3">Access</th>
 											<th className="px-4 py-3">Last login</th>
+											<th className="px-4 py-3">Actions</th>
 										</tr>
 									</thead>
 									<tbody className="divide-y divide-white/[0.07]">
@@ -574,6 +766,15 @@ export function StudentMaster() {
 													key={student.id}
 													className="transition hover:bg-white/[0.025]"
 												>
+													<td className="px-4 py-3">
+														<input
+															type="checkbox"
+															aria-label={`Select ${student.fullName}`}
+															checked={selectedStudentIds.includes(student.id)}
+															onChange={() => toggleStudent(student.id)}
+															className="h-4 w-4 accent-cyan-200"
+														/>
+													</td>
 													<td className="px-4 py-3">
 														<p className="font-medium text-white/90">
 															{student.fullName}
@@ -623,13 +824,22 @@ export function StudentMaster() {
 																: relativeLogin(student.lastLoginAt, now)}
 														</time>
 													</td>
+													<td className="px-4 py-3">
+														<button
+															type="button"
+															onClick={() => beginStudentEdit(student)}
+															className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-white/75 hover:bg-white/5"
+														>
+															<Pencil size={13} /> Edit
+														</button>
+													</td>
 												</tr>
 											);
 										})}
 										{filteredStudents.length === 0 && (
 											<tr>
 												<td
-													colSpan={6}
+													colSpan={8}
 													className="px-4 py-12 text-center text-sm text-white/40"
 												>
 													{students.length
