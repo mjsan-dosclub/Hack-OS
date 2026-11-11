@@ -22,6 +22,7 @@ export default defineConfig({
 		url: baseURL,
 		reuseExistingServer: !process.env.CI,
 		timeout: 120_000,
+		gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
 		env: {
 			// Public desktop smoke tests use local, non-secret auth configuration.
 			// No Supabase instance or production credentials are required.
