@@ -117,6 +117,8 @@ async function upsertHackathon(
 			longitude: coordinates?.longitude ?? null,
 			prizeCurrency: record.prizeCurrency,
 			totalPrizeValue: record.totalPrizeValue,
+			cashPrizeStatus: record.cashPrizeStatus,
+			goodiesAvailable: record.goodiesAvailable,
 			startDate: new Date(record.startDate),
 			endDate: new Date(record.endDate),
 			registrationDeadline: record.registrationDeadline

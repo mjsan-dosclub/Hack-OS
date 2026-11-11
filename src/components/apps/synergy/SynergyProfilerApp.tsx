@@ -154,14 +154,22 @@ function MatchResults({ results }: { results: SynergyMatchResponse }) {
 										}).format(new Date(event.registrationDeadline))}
 									</span>
 								)}
-								{event.totalPrizeValue > 0 && (
-									<span>
-										{new Intl.NumberFormat("en-IN", {
-											style: "currency",
-											currency: event.prizeCurrency,
-											maximumFractionDigits: 0,
-										}).format(event.totalPrizeValue)}{" "}
-										prizes
+								<span
+									className={
+										event.cashPrizeStatus === "announced"
+											? "text-slate-400"
+											: "font-semibold text-fuchsia-700"
+									}
+								>
+									{event.cashPrizeStatus === "announced"
+										? `${new Intl.NumberFormat("en-IN", { style: "currency", currency: event.prizeCurrency, maximumFractionDigits: 0 }).format(event.totalPrizeValue)} cash prizes`
+										: event.cashPrizeStatus === "unannounced"
+											? "Cash prize TBA"
+											: "No cash prize"}
+								</span>
+								{event.goodiesAvailable && (
+									<span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-800">
+										Goodies provided
 									</span>
 								)}
 							</div>

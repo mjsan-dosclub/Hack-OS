@@ -85,6 +85,8 @@ export async function GET(request: Request) {
 						applicationStatus: hackathons.applicationStatus,
 						prizeCurrency: hackathons.prizeCurrency,
 						totalPrizeValue: hackathons.totalPrizeValue,
+						cashPrizeStatus: hackathons.cashPrizeStatus,
+						goodiesAvailable: hackathons.goodiesAvailable,
 						source: hackathons.source,
 					})
 					.from(hackathons)
@@ -125,6 +127,8 @@ export async function GET(request: Request) {
 				applicationStatus: hackathons.applicationStatus,
 				prizeCurrency: hackathons.prizeCurrency,
 				totalPrizeValue: hackathons.totalPrizeValue,
+				cashPrizeStatus: hackathons.cashPrizeStatus,
+				goodiesAvailable: hackathons.goodiesAvailable,
 				source: hackathons.source,
 				verified: hackathons.verified,
 				published: hackathons.published,
@@ -240,6 +244,8 @@ export async function POST(request: Request) {
 					applicationStatus: event.applicationStatus,
 					prizeCurrency: event.prizeCurrency,
 					totalPrizeValue: event.totalPrizeValue,
+					cashPrizeStatus: event.cashPrizeStatus,
+					goodiesAvailable: event.goodiesAvailable,
 					source: "manual",
 					verified: false,
 					published: false,
@@ -320,6 +326,8 @@ export async function POST(request: Request) {
 				applicationStatus: event.applicationStatus,
 				prizeCurrency: event.prizeCurrency,
 				totalPrizeValue: event.totalPrizeValue,
+				cashPrizeStatus: event.cashPrizeStatus,
+				goodiesAvailable: event.goodiesAvailable,
 				published: action === "approve" || action === "update",
 				verified: action === "approve" || action === "update",
 			})

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CASH_PRIZE_STATUSES } from "@/types/hackathon";
 
 const webUrl = z
 	.string()
@@ -30,6 +31,8 @@ const reviewEventFieldsSchema = z
 		applicationStatus: z.enum(["upcoming", "open", "closed", "ended"]),
 		prizeCurrency: z.string().regex(/^[A-Z]{3}$/),
 		totalPrizeValue: z.number().int().nonnegative(),
+		cashPrizeStatus: z.enum(CASH_PRIZE_STATUSES).default("unannounced"),
+		goodiesAvailable: z.boolean().default(false),
 	})
 	.strict();
 
@@ -94,6 +97,8 @@ export const bulkManualEventsResultSchema = z
 							application_status: z.string(),
 							prize_currency: z.string(),
 							total_prize_value: z.string(),
+							cash_prize_status: z.string(),
+							goodies_available: z.string(),
 						})
 						.strict(),
 				})
@@ -171,6 +176,8 @@ export const approvedEventsListSchema = z.object({
 			applicationStatus: z.enum(["upcoming", "open", "closed", "ended"]),
 			prizeCurrency: z.string().regex(/^[A-Z]{3}$/),
 			totalPrizeValue: z.number().int().nonnegative(),
+			cashPrizeStatus: z.enum(CASH_PRIZE_STATUSES),
+			goodiesAvailable: z.boolean(),
 			source: z.enum(["devpost", "devfolio", "unstop", "manual", "mlh"]),
 		}),
 	),

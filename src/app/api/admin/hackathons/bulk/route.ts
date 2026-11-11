@@ -92,6 +92,8 @@ function issueMessage(issue: z.ZodIssue): string {
 		return "Format must be online, in-person, or hybrid.";
 	if (field === "applicationStatus" && issue.code === "invalid_enum_value")
 		return "Status must be upcoming, open, closed, or ended.";
+	if (field === "cashPrizeStatus" && issue.code === "invalid_enum_value")
+		return "Cash prize status must be announced, unannounced, or no-cash-prize.";
 	if (field === "startDate" && issue.message === "Invalid datetime")
 		return "Enter a valid start date and time.";
 	if (field === "endDate" && issue.message === "Invalid datetime")
@@ -173,6 +175,26 @@ function parseBulkEvents(
 		]);
 		const prizeText = prizeSource.replace(/[^0-9.-]/g, "");
 		const prizeValue = prizeText ? Number(prizeText) : 0;
+		const prizeStatusText = value(row, ["cash prize status", "prize status"])
+			.toLowerCase()
+			.replaceAll("_", "-");
+		const cashPrizeStatus =
+			prizeStatusText === "tba" || prizeStatusText === "not announced"
+				? "unannounced"
+				: prizeStatusText === "none" || prizeStatusText === "no cash prize"
+					? "no-cash-prize"
+					: prizeStatusText || (prizeValue > 0 ? "announced" : "unannounced");
+		const goodiesText = value(row, ["goodies available", "goodies", "swag"])
+			.toLowerCase()
+			.trim();
+		const goodiesAvailable =
+			goodiesText === ""
+				? false
+				: ["yes", "true", "1", "provided", "available"].includes(goodiesText)
+					? true
+					: ["no", "false", "0", "none"].includes(goodiesText)
+						? false
+						: goodiesText;
 		const title = value(row, ["title", "event title", "hackathon"]);
 		const organizer = value(row, ["organizer", "host", "organization"]);
 		const officialUrl = value(row, [
@@ -226,6 +248,9 @@ function parseBulkEvents(
 			application_status: statusText || "upcoming",
 			prize_currency: currencyText.toUpperCase() || "INR",
 			total_prize_value: prizeSource || "0",
+			cash_prize_status:
+				prizeStatusText || (prizeValue > 0 ? "announced" : "unannounced"),
+			goodies_available: goodiesText,
 		};
 		const parsed = manualEventSchema.safeParse({
 			title,
@@ -244,6 +269,8 @@ function parseBulkEvents(
 			totalPrizeValue: Number.isFinite(prizeValue)
 				? Math.round(prizeValue)
 				: -1,
+			cashPrizeStatus,
+			goodiesAvailable,
 		});
 		if (!parsed.success) {
 			issues.push({

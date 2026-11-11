@@ -61,6 +61,8 @@ export const synergyHackathonSchema = z
 		applicationStatus: z.enum(["upcoming", "open"]),
 		prizeCurrency: z.string().length(3),
 		totalPrizeValue: z.number().int().nonnegative(),
+		cashPrizeStatus: z.enum(["announced", "unannounced", "no-cash-prize"]),
+		goodiesAvailable: z.boolean(),
 		tags: z.array(z.string()),
 		matchScore: z.number().int().min(0).max(100),
 		matchReason: z.string().min(1),

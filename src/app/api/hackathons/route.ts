@@ -81,6 +81,8 @@ export async function GET() {
 						: null,
 				prizeCurrency: row.prizeCurrency,
 				totalPrizeValue: row.totalPrizeValue,
+				cashPrizeStatus: row.cashPrizeStatus,
+				goodiesAvailable: row.goodiesAvailable,
 				startDate: row.startDate.toISOString(),
 				endDate: row.endDate.toISOString(),
 				registrationDeadline: row.registrationDeadline?.toISOString() ?? null,

@@ -49,6 +49,8 @@ export async function POST(request: Request) {
 				applicationStatus: hackathons.applicationStatus,
 				prizeCurrency: hackathons.prizeCurrency,
 				totalPrizeValue: hackathons.totalPrizeValue,
+				cashPrizeStatus: hackathons.cashPrizeStatus,
+				goodiesAvailable: hackathons.goodiesAvailable,
 				description: hackathons.description,
 			})
 			.from(hackathons)
@@ -83,7 +85,13 @@ export async function POST(request: Request) {
 					registrationDeadline:
 						event.registrationDeadline?.toISOString() ?? null,
 					applicationStatus: event.applicationStatus,
-					prize: `${event.prizeCurrency} ${event.totalPrizeValue}`,
+					cashPrize:
+						event.cashPrizeStatus === "announced"
+							? `${event.prizeCurrency} ${event.totalPrizeValue}`
+							: event.cashPrizeStatus === "unannounced"
+								? "not announced"
+								: "none announced",
+					goodiesAvailable: event.goodiesAvailable,
 					existingDescription: event.description.slice(0, 2_000),
 					publishedTracks: tracks.map((track) => ({
 						title: track.title,

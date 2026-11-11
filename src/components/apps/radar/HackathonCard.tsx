@@ -9,6 +9,7 @@ import {
 	ExternalLink,
 	MapPin,
 } from "lucide-react";
+import { formatHackathonPrize } from "@/lib/hackathonPrize";
 import type { Hackathon } from "@/types/hackathon";
 
 interface HackathonCardProps {
@@ -17,14 +18,6 @@ interface HackathonCardProps {
 	saved?: boolean;
 	onBookmark?: (event: Hackathon) => void;
 	onInspect?: (event: Hackathon) => void;
-}
-
-function formatPrize(event: Hackathon): string {
-	return new Intl.NumberFormat("en", {
-		style: "currency",
-		currency: event.prizeCurrency,
-		maximumFractionDigits: 0,
-	}).format(event.totalPrizeValue);
 }
 
 function formatDates(event: Hackathon): string {
@@ -198,12 +191,23 @@ export function HackathonCard({
 			<div
 				className={`${compact ? "flex flex-wrap items-center gap-3 sm:max-w-[300px] sm:justify-end" : "mt-4 border-t border-white/[0.07] pt-3"}`}
 			>
-				<p className="text-sm font-semibold text-amber-100">
-					{formatPrize(event)}{" "}
-					<span className="text-[10px] font-normal text-white/35">
-						in prizes
-					</span>
-				</p>
+				<div className="flex flex-wrap items-center gap-2">
+					<p
+						className={`text-sm font-semibold ${event.cashPrizeStatus === "announced" ? "text-amber-100" : "text-fuchsia-200"}`}
+					>
+						{formatHackathonPrize(event)}
+					</p>
+					{event.cashPrizeStatus === "unannounced" && (
+						<span className="rounded-full border border-fuchsia-200/25 bg-fuchsia-200/10 px-2 py-0.5 text-[9px] font-semibold text-fuchsia-100">
+							Prize TBA
+						</span>
+					)}
+					{event.goodiesAvailable && (
+						<span className="rounded-full border border-emerald-200/25 bg-emerald-200/10 px-2 py-0.5 text-[9px] font-semibold text-emerald-100">
+							Goodies
+						</span>
+					)}
+				</div>
 				<p
 					className={`mt-1 flex items-center gap-1.5 text-[11px] ${deadline.expired ? "text-rose-300/75" : deadline.urgent ? "text-amber-200" : "text-emerald-200/80"}`}
 				>

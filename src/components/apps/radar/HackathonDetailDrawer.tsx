@@ -10,6 +10,7 @@ import {
 	Trophy,
 	X,
 } from "lucide-react";
+import { formatHackathonPrize } from "@/lib/hackathonPrize";
 import type { Hackathon } from "@/types/hackathon";
 
 interface HackathonDetailDrawerProps {
@@ -97,18 +98,18 @@ export function HackathonDetailDrawer({
 								</p>
 								<div className="mt-4 rounded-lg border border-amber-100/15 bg-amber-100/[0.06] p-3">
 									<p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-amber-100/65">
-										Total prize pool
+										Cash prizes
 									</p>
-									<p className="mt-1 text-xl font-bold text-amber-100">
-										{new Intl.NumberFormat("en", {
-											style: "currency",
-											currency: event.prizeCurrency,
-											maximumFractionDigits: 0,
-										}).format(event.totalPrizeValue)}
-										<span className="ml-2 text-xs font-normal text-white/45">
-											{event.prizeCurrency} total prizes
+									<p
+										className={`mt-1 text-xl font-bold ${event.cashPrizeStatus === "announced" ? "text-amber-100" : "text-fuchsia-200"}`}
+									>
+										{formatHackathonPrize(event)}
+									</p>
+									{event.goodiesAvailable && (
+										<span className="mt-2 inline-flex rounded-full border border-emerald-200/25 bg-emerald-200/10 px-2 py-1 text-[10px] font-semibold text-emerald-100">
+											Goodies / swag provided
 										</span>
-									</p>
+									)}
 								</div>
 								<div className="mt-3 grid grid-cols-2 gap-2 text-[10px] text-white/65">
 									<span className="flex items-center gap-2 rounded-lg bg-black/15 p-2">
@@ -168,11 +169,9 @@ export function HackathonDetailDrawer({
 														{track.title}
 													</h4>
 													<span className="shrink-0 text-[10px] font-semibold text-amber-100">
-														{new Intl.NumberFormat("en", {
-															style: "currency",
-															currency: event.prizeCurrency,
-															maximumFractionDigits: 0,
-														}).format(track.prizeAmount)}
+														{track.prizeAmount > 0
+															? `${event.prizeCurrency} ${track.prizeAmount.toLocaleString()}`
+															: "Track amount not listed"}
 													</span>
 												</div>
 												<p className="mt-1 text-[11px] leading-5 text-white/45">
