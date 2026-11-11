@@ -20,6 +20,7 @@ import {
 	PRIMARY_TAGS,
 	type HackathonSort,
 	type PrizeThreshold,
+	type RewardFilter,
 } from "@/hooks/useHackathonFilter";
 import { usePublishedHackathons } from "@/hooks/usePublishedHackathons";
 import { useWindowManager } from "@/stores/useWindowManager";
@@ -37,6 +38,17 @@ const PRIZE_OPTIONS: readonly { value: PrizeThreshold; label: string }[] = [
 	{ value: "1000", label: ">$1,000" },
 	{ value: "5000", label: ">$5,000" },
 	{ value: "25000", label: ">$25,000" },
+];
+const REWARD_OPTIONS: readonly { value: RewardFilter; label: string }[] = [
+	{ value: "all", label: "Any reward" },
+	{ value: "cash", label: "Cash" },
+	{ value: "software", label: "Tools / software" },
+	{ value: "credits", label: "Credits" },
+	{ value: "certificate", label: "Certificates" },
+	{ value: "interview", label: "Interviews" },
+	{ value: "kit", label: "Kits / hardware" },
+	{ value: "merchandise", label: "Goodies / merchandise" },
+	{ value: "other", label: "Other rewards" },
 ];
 const selectClass =
 	"h-9 rounded-lg border border-white/10 bg-[#171a23] px-2.5 text-[10px] text-white/75 outline-none focus:border-cyan-200/40";
@@ -118,7 +130,7 @@ export function RadarApp() {
 								</button>
 							</div>
 							<fieldset className="mt-5">
-								<legend className="mb-2 text-[10px] font-medium text-white/45">
+								<legend className="mb-2 text-xs font-medium text-white/45">
 									Event format
 								</legend>
 								<div className="space-y-1">
@@ -155,7 +167,28 @@ export function RadarApp() {
 								</div>
 							</fieldset>
 							<fieldset className="mt-5">
-								<legend className="mb-2 text-[10px] font-medium text-white/45">
+								<legend className="mb-2 text-xs font-medium text-white/45">
+									Reward type
+								</legend>
+								<select
+									value={filters.reward}
+									onChange={(event) => {
+										const reward = REWARD_OPTIONS.find(
+											(option) => option.value === event.target.value,
+										);
+										if (reward) update("reward", reward.value);
+									}}
+									className={`${selectClass} w-full`}
+								>
+									{REWARD_OPTIONS.map((option) => (
+										<option key={option.value} value={option.value}>
+											{option.label}
+										</option>
+									))}
+								</select>
+							</fieldset>
+							<fieldset className="mt-5">
+								<legend className="mb-2 text-xs font-medium text-white/45">
 									Registration
 								</legend>
 								<select
@@ -179,7 +212,7 @@ export function RadarApp() {
 								</select>
 							</fieldset>
 							<fieldset className="mt-5">
-								<legend className="mb-2 text-[10px] font-medium text-white/45">
+								<legend className="mb-2 text-xs font-medium text-white/45">
 									Prize pool minimum
 								</legend>
 								<select
@@ -204,7 +237,7 @@ export function RadarApp() {
 								</select>
 							</fieldset>
 							<fieldset className="mt-5">
-								<legend className="mb-2 text-[10px] font-medium text-white/45">
+								<legend className="mb-2 text-xs font-medium text-white/45">
 									Tech & interests
 								</legend>
 								<div className="flex flex-wrap gap-1.5">
@@ -512,6 +545,25 @@ export function RadarApp() {
 									</button>
 								))}
 							</div>
+							<label className="mt-4 block text-xs text-white/55">
+								Reward type
+								<select
+									value={filters.reward}
+									onChange={(event) => {
+										const reward = REWARD_OPTIONS.find(
+											(option) => option.value === event.target.value,
+										);
+										if (reward) update("reward", reward.value);
+									}}
+									className={`${selectClass} mt-1 w-full`}
+								>
+									{REWARD_OPTIONS.map((option) => (
+										<option key={option.value} value={option.value}>
+											{option.label}
+										</option>
+									))}
+								</select>
+							</label>
 							<div className="mt-5 flex flex-wrap gap-2">
 								{PRIMARY_TAGS.map((tag) => (
 									<button

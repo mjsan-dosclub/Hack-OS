@@ -5,7 +5,7 @@ export function formatHackathonPrize(event: {
 	prizeCurrency: string;
 	totalPrizeValue: number;
 }): string {
-	if (event.cashPrizeStatus === "unannounced") return "Cash prize TBA";
+	if (event.cashPrizeStatus === "unannounced") return "Cash prize not listed";
 	if (event.cashPrizeStatus === "no-cash-prize") return "No cash prize";
 	try {
 		return new Intl.NumberFormat("en", {

@@ -11,6 +11,7 @@ import {
 	X,
 } from "lucide-react";
 import { formatHackathonPrize } from "@/lib/hackathonPrize";
+import { RewardList } from "@/components/apps/radar/RewardList";
 import type { Hackathon } from "@/types/hackathon";
 
 interface HackathonDetailDrawerProps {
@@ -186,6 +187,34 @@ export function HackathonDetailDrawer({
 									)}
 								</div>
 							</section>
+							{event.rewards.length > 0 && (
+								<section className="mt-5">
+									<h3 className="text-xs font-semibold text-white">
+										Rewards and prizes
+									</h3>
+									<div className="mt-2 rounded-xl border border-violet-200/15 bg-violet-200/[0.04] p-3">
+										<RewardList rewards={event.rewards} />
+										<div className="mt-3 space-y-2">
+											{event.rewards.map((reward) => (
+												<article
+													key={reward.id}
+													className="border-t border-white/[0.07] pt-2 text-[11px] text-white/60"
+												>
+													<p>
+														<span className="font-semibold text-white/85">
+															{reward.name}
+														</span>{" "}
+														· {reward.recipient}
+													</p>
+													{reward.details && (
+														<p className="mt-1">{reward.details}</p>
+													)}
+												</article>
+											))}
+										</div>
+									</div>
+								</section>
+							)}
 							<section className="mt-5">
 								<h3 className="text-xs font-semibold text-white">
 									Eligibility

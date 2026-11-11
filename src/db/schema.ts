@@ -219,6 +219,47 @@ export const hackathonTracks = pgTable(
 	],
 );
 
+/** Individual cash and non-cash awards with provenance for moderator review. */
+export const hackathonRewards = pgTable(
+	"hackathon_rewards",
+	{
+		id: uuid("id").primaryKey().defaultRandom(),
+		hackathonId: uuid("hackathon_id")
+			.notNull()
+			.references(() => hackathons.id, { onDelete: "cascade" }),
+		name: varchar("name", { length: 180 }).notNull(),
+		category: varchar("category", { length: 24 }).notNull(),
+		recipient: varchar("recipient", { length: 100 })
+			.notNull()
+			.default("participants"),
+		details: text("details").notNull().default(""),
+		amount: numeric("amount", { precision: 14, scale: 2 }),
+		currency: varchar("currency", { length: 3 }),
+		sourceExcerpt: text("source_excerpt").notNull().default(""),
+		sourceUrl: text("source_url").notNull(),
+		...timestamps,
+	},
+	(table) => [
+		index("hackathon_rewards_event_idx").on(table.hackathonId),
+		check(
+			"hackathon_rewards_category_ck",
+			sql`${table.category} in ('cash', 'software', 'credits', 'certificate', 'interview', 'kit', 'merchandise', 'other')`,
+		),
+		check(
+			"hackathon_rewards_amount_ck",
+			sql`${table.amount} is null or ${table.amount} >= 0`,
+		),
+		check(
+			"hackathon_rewards_currency_ck",
+			sql`${table.currency} is null or ${table.currency} ~ '^[A-Z]{3}$'`,
+		),
+		check(
+			"hackathon_rewards_amount_currency_ck",
+			sql`(${table.amount} is null) = (${table.currency} is null)`,
+		),
+	],
+);
+
 /** Normalized tag catalog. Slugs are stable keys; labels are presentation. */
 export const hackathonTags = pgTable(
 	"hackathon_tags",

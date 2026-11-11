@@ -19,6 +19,7 @@ import {
 	clubMembers,
 	hackathons,
 	hackathonTagLinks,
+	hackathonRewards,
 	hackathonTags,
 	memberActivityEvents,
 	memberLibraryChunks,
@@ -425,6 +426,24 @@ export async function POST(request: Request) {
 						),
 					)
 			: [];
+		const rewardRows = filteredEvents.length
+			? await db
+					.select()
+					.from(hackathonRewards)
+					.where(
+						inArray(
+							hackathonRewards.hackathonId,
+							filteredEvents.map((event) => event.id),
+						),
+					)
+			: [];
+		const rewardsByEvent = new Map<string, typeof rewardRows>();
+		for (const reward of rewardRows) {
+			rewardsByEvent.set(reward.hackathonId, [
+				...(rewardsByEvent.get(reward.hackathonId) ?? []),
+				reward,
+			]);
+		}
 		const tagsByEvent = new Map<string, string[]>();
 		for (const row of tagRows) {
 			tagsByEvent.set(row.hackathonId, [
@@ -733,6 +752,15 @@ export async function POST(request: Request) {
 				totalPrizeValue: event.totalPrizeValue,
 				cashPrizeStatus: event.cashPrizeStatus,
 				goodiesAvailable: event.goodiesAvailable,
+				rewards: (rewardsByEvent.get(event.id) ?? []).map((reward) => ({
+					id: reward.id,
+					name: reward.name,
+					category: reward.category,
+					recipient: reward.recipient,
+					details: reward.details,
+					amount: reward.amount === null ? null : Number(reward.amount),
+					currency: reward.currency,
+				})),
 				tags,
 				matchScore: score,
 				matchReason: eventMatchReason(matchedTerms),

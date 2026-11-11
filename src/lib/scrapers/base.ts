@@ -104,7 +104,8 @@ export abstract class BaseScraper {
 				!record.startDateText ||
 				!record.endDateText ||
 				!record.venueText ||
-				!record.prizeText;
+				!record.prizeText ||
+				!record.rewards?.length;
 			if (!needsDetails || requests >= maxDetails) {
 				enriched.push(record);
 				continue;
@@ -139,6 +140,10 @@ export abstract class BaseScraper {
 					prizeText: detail.prizeText ?? record.prizeText,
 					tags: [...new Set([...record.tags, ...detail.tags])],
 					tracks: detail.tracks.length > 0 ? detail.tracks : record.tracks,
+					rewards:
+						detail.rewards && detail.rewards.length > 0
+							? detail.rewards
+							: record.rewards,
 				});
 			} catch (error: unknown) {
 				this.failed();

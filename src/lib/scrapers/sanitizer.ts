@@ -182,6 +182,69 @@ function parsePrize(text: string): {
 	};
 }
 
+function rewardCategory(
+	name: string,
+):
+	| "cash"
+	| "software"
+	| "credits"
+	| "certificate"
+	| "interview"
+	| "kit"
+	| "merchandise"
+	| "other" {
+	if (/cash|₹|\$|\bINR\b|\bUSD\b|rupees?/i.test(name)) return "cash";
+	if (/certificate|certification/i.test(name)) return "certificate";
+	if (/interview|mock interview/i.test(name)) return "interview";
+	if (/credit|credits/i.test(name)) return "credits";
+	if (/kit|hardware|device|board/i.test(name)) return "kit";
+	if (/goodies|swag|merch|t-shirt/i.test(name)) return "merchandise";
+	if (/plan|license|subscription|software|tool access|platform/i.test(name))
+		return "software";
+	return "other";
+}
+
+function normalizedRewards(
+	items: NonNullable<RawHackathonData["rewards"]> | undefined,
+	sourceUrl: string,
+) {
+	const seen = new Set<string>();
+	return (items ?? [])
+		.map((item) => {
+			const name = cleanText(item.name).slice(0, 180);
+			const sourceExcerpt = cleanText(item.sourceExcerpt).slice(0, 2_000);
+			const category = item.category ?? rewardCategory(name);
+			const parsedCash = category === "cash" ? parsePrize(sourceExcerpt) : null;
+			const amount =
+				category !== "cash"
+					? null
+					: (item.amount ??
+						(parsedCash?.cashPrizeStatus === "announced"
+							? parsedCash.value
+							: null));
+			return {
+				name,
+				category,
+				recipient: cleanText(item.recipient).slice(0, 100) || "Not specified",
+				details: cleanText(item.details).slice(0, 2_000),
+				amount,
+				currency:
+					amount === null
+						? null
+						: (item.currency ?? parsedCash?.currency ?? null),
+				sourceExcerpt,
+				sourceUrl,
+			};
+		})
+		.filter((item) => {
+			const key = `${item.name.toLowerCase()}|${item.recipient.toLowerCase()}`;
+			if (!item.name || seen.has(key)) return false;
+			seen.add(key);
+			return true;
+		})
+		.slice(0, 40);
+}
+
 async function llmHints(
 	raw: RawHackathonData,
 ): Promise<z.infer<typeof parsedHintsSchema> | null> {
@@ -334,6 +397,7 @@ export async function sanitizeHackathon(
 		totalPrizeValue: prize.value,
 		cashPrizeStatus: prize.cashPrizeStatus,
 		goodiesAvailable: /\b(?:goodies|swag)\b/i.test(text),
+		rewards: normalizedRewards(raw.rewards, eventUrl.toString()),
 		startDate,
 		endDate,
 		registrationDeadline: deadline,

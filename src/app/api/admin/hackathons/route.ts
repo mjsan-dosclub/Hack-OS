@@ -1,7 +1,11 @@
 import { and, asc, count, desc, eq, ilike, inArray, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { getDatabase } from "@/db/client";
-import { hackathonSourceChecks, hackathons } from "@/db/schema";
+import {
+	hackathonRewards,
+	hackathonSourceChecks,
+	hackathons,
+} from "@/db/schema";
 import {
 	MemberAccessError,
 	requireAdminMember,
@@ -96,12 +100,36 @@ export async function GET(request: Request) {
 					.offset((page - 1) * pageSize),
 				db.select({ value: count() }).from(hackathons).where(where),
 			]);
+			const rewardRows = rows.length
+				? await db
+						.select()
+						.from(hackathonRewards)
+						.where(
+							inArray(
+								hackathonRewards.hackathonId,
+								rows.map((row) => row.id),
+							),
+						)
+				: [];
 			const parsed = approvedEventsListSchema.safeParse({
 				events: rows.map((row) => ({
 					...row,
 					startDate: row.startDate.toISOString(),
 					endDate: row.endDate.toISOString(),
 					registrationDeadline: row.registrationDeadline?.toISOString() ?? null,
+					rewards: rewardRows
+						.filter((reward) => reward.hackathonId === row.id)
+						.map((reward) => ({
+							id: reward.id,
+							name: reward.name,
+							category: reward.category,
+							recipient: reward.recipient,
+							details: reward.details,
+							amount: reward.amount === null ? null : Number(reward.amount),
+							currency: reward.currency,
+							sourceExcerpt: reward.sourceExcerpt,
+							sourceUrl: reward.sourceUrl,
+						})),
 				})),
 				page,
 				pageSize,
@@ -158,12 +186,36 @@ export async function GET(request: Request) {
 					.orderBy(desc(hackathonSourceChecks.observedAt))
 					.limit(300)
 			: [];
+		const rewardRows = rows.length
+			? await db
+					.select()
+					.from(hackathonRewards)
+					.where(
+						inArray(
+							hackathonRewards.hackathonId,
+							rows.map((row) => row.id),
+						),
+					)
+			: [];
 		const parsed = reviewListSchema.safeParse({
 			events: rows.map((row) => ({
 				...row,
 				startDate: row.startDate.toISOString(),
 				endDate: row.endDate.toISOString(),
 				registrationDeadline: row.registrationDeadline?.toISOString() ?? null,
+				rewards: rewardRows
+					.filter((reward) => reward.hackathonId === row.id)
+					.map((reward) => ({
+						id: reward.id,
+						name: reward.name,
+						category: reward.category,
+						recipient: reward.recipient,
+						details: reward.details,
+						amount: reward.amount === null ? null : Number(reward.amount),
+						currency: reward.currency,
+						sourceExcerpt: reward.sourceExcerpt,
+						sourceUrl: reward.sourceUrl,
+					})),
 				evidence: checks
 					.filter((check) => check.hackathonId === row.id)
 					.map((check) => ({
@@ -224,33 +276,45 @@ export async function POST(request: Request) {
 					.replace(/^-|-$/g, "")
 					.slice(0, 160) || "hackathon";
 			const suffix = crypto.randomUUID().slice(0, 8);
-			const [created] = await db
-				.insert(hackathons)
-				.values({
-					slug: `${baseSlug}-${suffix}`,
-					title: event.title,
-					description: event.description,
-					organizer: event.organizer,
-					websiteUrl: event.websiteUrl,
-					bannerUrl: event.bannerUrl,
-					format: event.format,
-					venueCity: event.venueCity,
-					venueCountry: event.venueCountry,
-					startDate: new Date(event.startDate),
-					endDate: new Date(event.endDate),
-					registrationDeadline: event.registrationDeadline
-						? new Date(event.registrationDeadline)
-						: null,
-					applicationStatus: event.applicationStatus,
-					prizeCurrency: event.prizeCurrency,
-					totalPrizeValue: event.totalPrizeValue,
-					cashPrizeStatus: event.cashPrizeStatus,
-					goodiesAvailable: event.goodiesAvailable,
-					source: "manual",
-					verified: false,
-					published: false,
-				})
-				.returning({ id: hackathons.id });
+			const created = await db.transaction(async (tx) => {
+				const [inserted] = await tx
+					.insert(hackathons)
+					.values({
+						slug: `${baseSlug}-${suffix}`,
+						title: event.title,
+						description: event.description,
+						organizer: event.organizer,
+						websiteUrl: event.websiteUrl,
+						bannerUrl: event.bannerUrl,
+						format: event.format,
+						venueCity: event.venueCity,
+						venueCountry: event.venueCountry,
+						startDate: new Date(event.startDate),
+						endDate: new Date(event.endDate),
+						registrationDeadline: event.registrationDeadline
+							? new Date(event.registrationDeadline)
+							: null,
+						applicationStatus: event.applicationStatus,
+						prizeCurrency: event.prizeCurrency,
+						totalPrizeValue: event.totalPrizeValue,
+						cashPrizeStatus: event.cashPrizeStatus,
+						goodiesAvailable: event.goodiesAvailable,
+						source: "manual",
+						verified: false,
+						published: false,
+					})
+					.returning({ id: hackathons.id });
+				if (inserted && event.rewards.length > 0) {
+					await tx.insert(hackathonRewards).values(
+						event.rewards.map((reward) => ({
+							...reward,
+							hackathonId: inserted.id,
+							amount: reward.amount === null ? null : String(reward.amount),
+						})),
+					);
+				}
+				return inserted;
+			});
 			if (!created)
 				return NextResponse.json(
 					{ error: "The manual event could not be added." },
@@ -306,32 +370,46 @@ export async function POST(request: Request) {
 		const locationChanged =
 			event.venueCity !== existing.venueCity ||
 			event.venueCountry !== existing.venueCountry;
-		await db
-			.update(hackathons)
-			.set({
-				title: event.title,
-				description: event.description,
-				organizer: event.organizer,
-				websiteUrl: event.websiteUrl,
-				bannerUrl: event.bannerUrl,
-				format: event.format,
-				venueCity: event.venueCity,
-				venueCountry: event.venueCountry,
-				...(locationChanged ? { latitude: null, longitude: null } : {}),
-				startDate: new Date(event.startDate),
-				endDate: new Date(event.endDate),
-				registrationDeadline: event.registrationDeadline
-					? new Date(event.registrationDeadline)
-					: null,
-				applicationStatus: event.applicationStatus,
-				prizeCurrency: event.prizeCurrency,
-				totalPrizeValue: event.totalPrizeValue,
-				cashPrizeStatus: event.cashPrizeStatus,
-				goodiesAvailable: event.goodiesAvailable,
-				published: action === "approve" || action === "update",
-				verified: action === "approve" || action === "update",
-			})
-			.where(eq(hackathons.id, id));
+		await db.transaction(async (tx) => {
+			await tx
+				.update(hackathons)
+				.set({
+					title: event.title,
+					description: event.description,
+					organizer: event.organizer,
+					websiteUrl: event.websiteUrl,
+					bannerUrl: event.bannerUrl,
+					format: event.format,
+					venueCity: event.venueCity,
+					venueCountry: event.venueCountry,
+					...(locationChanged ? { latitude: null, longitude: null } : {}),
+					startDate: new Date(event.startDate),
+					endDate: new Date(event.endDate),
+					registrationDeadline: event.registrationDeadline
+						? new Date(event.registrationDeadline)
+						: null,
+					applicationStatus: event.applicationStatus,
+					prizeCurrency: event.prizeCurrency,
+					totalPrizeValue: event.totalPrizeValue,
+					cashPrizeStatus: event.cashPrizeStatus,
+					goodiesAvailable: event.goodiesAvailable,
+					published: action === "approve" || action === "update",
+					verified: action === "approve" || action === "update",
+				})
+				.where(eq(hackathons.id, id));
+			await tx
+				.delete(hackathonRewards)
+				.where(eq(hackathonRewards.hackathonId, id));
+			if (event.rewards.length > 0) {
+				await tx.insert(hackathonRewards).values(
+					event.rewards.map((reward) => ({
+						...reward,
+						hackathonId: id,
+						amount: reward.amount === null ? null : String(reward.amount),
+					})),
+				);
+			}
+		});
 		return NextResponse.json({
 			status:
 				action === "approve" || action === "update"
