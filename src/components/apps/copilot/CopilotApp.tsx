@@ -499,6 +499,11 @@ export function CopilotApp() {
 							"Choose a hackathon from Radar to inject its rules."}
 					</p>
 					<p className="mt-2 text-[9px] text-cyan-100/65">{hackathonSummary}</p>
+					{hackathon?.goodiesAvailable && (
+						<p className="mt-2 inline-flex rounded-full border border-emerald-200/20 bg-emerald-200/[0.08] px-2 py-1 text-[9px] font-medium text-emerald-100">
+							Goodies / swag provided
+						</p>
+					)}
 					{hackathon && (
 						<a
 							href={hackathon.websiteUrl}
@@ -528,8 +533,10 @@ export function CopilotApp() {
 										{track.description || "No track description supplied."}
 									</p>
 									<p className="mt-1 font-mono text-[9px] text-amber-100/75">
-										{hackathon?.prizeCurrency}{" "}
-										{track.prizeAmount.toLocaleString()}
+										{hackathon?.cashPrizeStatus === "announced" &&
+										track.prizeAmount > 0
+											? `${hackathon.prizeCurrency} ${track.prizeAmount.toLocaleString()}`
+											: "Track prize amount not listed"}
 									</p>
 								</li>
 							))}

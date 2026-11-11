@@ -12,10 +12,16 @@ export const HACKATHON_SOURCES = [
 	"manual",
 	"mlh",
 ] as const;
+export const CASH_PRIZE_STATUSES = [
+	"announced",
+	"unannounced",
+	"no-cash-prize",
+] as const;
 
 export type HackathonFormat = (typeof HACKATHON_FORMATS)[number];
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 export type HackathonSource = (typeof HACKATHON_SOURCES)[number];
+export type CashPrizeStatus = (typeof CASH_PRIZE_STATUSES)[number];
 
 export interface Coordinates {
 	latitude: number;
@@ -39,6 +45,8 @@ export interface Hackathon {
 	coordinates: Coordinates | null;
 	prizeCurrency: string;
 	totalPrizeValue: number;
+	cashPrizeStatus: CashPrizeStatus;
+	goodiesAvailable: boolean;
 	startDate: string;
 	endDate: string;
 	registrationDeadline: string | null;

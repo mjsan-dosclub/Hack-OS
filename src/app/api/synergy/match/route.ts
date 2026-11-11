@@ -375,6 +375,8 @@ export async function POST(request: Request) {
 				applicationStatus: hackathons.applicationStatus,
 				prizeCurrency: hackathons.prizeCurrency,
 				totalPrizeValue: hackathons.totalPrizeValue,
+				cashPrizeStatus: hackathons.cashPrizeStatus,
+				goodiesAvailable: hackathons.goodiesAvailable,
 			})
 			.from(hackathons)
 			.where(
@@ -729,6 +731,8 @@ export async function POST(request: Request) {
 				applicationStatus: event.applicationStatus,
 				prizeCurrency: event.prizeCurrency,
 				totalPrizeValue: event.totalPrizeValue,
+				cashPrizeStatus: event.cashPrizeStatus,
+				goodiesAvailable: event.goodiesAvailable,
 				tags,
 				matchScore: score,
 				matchReason: eventMatchReason(matchedTerms),

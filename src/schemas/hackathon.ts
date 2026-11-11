@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
 	APPLICATION_STATUSES,
+	CASH_PRIZE_STATUSES,
 	HACKATHON_FORMATS,
 	HACKATHON_SOURCES,
 } from "../types/hackathon.ts";
@@ -69,6 +70,8 @@ const hackathonInsertBaseSchema = z
 			.regex(/^[A-Z]{3}$/)
 			.default("USD"),
 		totalPrizeValue: z.number().int().nonnegative().default(0),
+		cashPrizeStatus: z.enum(CASH_PRIZE_STATUSES).default("unannounced"),
+		goodiesAvailable: z.boolean().default(false),
 		startDate: dateSchema,
 		endDate: dateSchema,
 		registrationDeadline: dateSchema.nullable().optional(),

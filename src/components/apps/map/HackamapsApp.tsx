@@ -106,7 +106,13 @@ function startIdeationText(event: Hackathon): string {
 	const tracks = event.tracks
 		.map((track) => `${track.title}: ${track.description}`)
 		.join("; ");
-	return `Help me brainstorm a hackathon project for ${event.title}, organized by ${event.organizer}. Event description: ${event.description}. Tracks: ${tracks || "No tracks published"}. Themes: ${event.tags.map((tag) => tag.name).join(", ")}. Prize pool: ${event.prizeCurrency} ${event.totalPrizeValue}. Suggest an original, achievable student project.`;
+	const cashPrize =
+		event.cashPrizeStatus === "announced"
+			? `${event.prizeCurrency} ${event.totalPrizeValue}`
+			: event.cashPrizeStatus === "unannounced"
+				? "not announced"
+				: "no cash prize";
+	return `Help me brainstorm a hackathon project for ${event.title}, organized by ${event.organizer}. Event description: ${event.description}. Tracks: ${tracks || "No tracks published"}. Themes: ${event.tags.map((tag) => tag.name).join(", ")}. Cash prize: ${cashPrize}. Goodies available: ${event.goodiesAvailable ? "yes" : "not listed"}. Suggest an original, achievable student project.`;
 }
 
 /** Synchronized event list + Leaflet map with optional browser geolocation. */

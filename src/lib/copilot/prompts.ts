@@ -76,7 +76,8 @@ export function summarizeHackathonContext(context: Hackathon | null): string {
 		`Submission requirements: ${context.submissionGuidelines}`,
 		`Listed themes: ${tags}`,
 		`Tracks:\n${tracks}`,
-		`Prize pool: ${context.prizeCurrency} ${context.totalPrizeValue}`,
+		`Cash prize: ${context.cashPrizeStatus === "announced" ? `${context.prizeCurrency} ${context.totalPrizeValue}` : context.cashPrizeStatus === "unannounced" ? "not announced by the organizer" : "the organizer says there is no cash prize"}`,
+		`Goodies: ${context.goodiesAvailable ? "the event listing says goodies/swag will be provided" : "not listed in the event record"}`,
 		`Official URL: ${context.websiteUrl}`,
 	].join("\n");
 }

@@ -119,10 +119,20 @@ function ClusterMarker({
 							<span className="block text-xs font-semibold text-slate-900">
 								{event.title}
 							</span>
-							<span className="mt-1 block text-[10px] text-slate-500">
-								{event.prizeCurrency} {event.totalPrizeValue.toLocaleString()}{" "}
-								in prizes
+							<span
+								className={`mt-1 block text-[10px] ${event.cashPrizeStatus === "announced" ? "text-slate-500" : "font-semibold text-fuchsia-700"}`}
+							>
+								{event.cashPrizeStatus === "announced"
+									? `${event.prizeCurrency} ${event.totalPrizeValue.toLocaleString()} in prizes`
+									: event.cashPrizeStatus === "unannounced"
+										? "Cash prize TBA"
+										: "No cash prize"}
 							</span>
+							{event.goodiesAvailable && (
+								<span className="mt-1 block text-[10px] font-medium text-emerald-700">
+									Goodies provided
+								</span>
+							)}
 							{cluster.approximateEventIds.includes(event.id) && (
 								<span className="block text-[10px] text-slate-500">
 									Approximate city-centre pin

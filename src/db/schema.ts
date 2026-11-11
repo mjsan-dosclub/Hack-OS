@@ -139,6 +139,8 @@ export const hackathons = pgTable(
 			.notNull()
 			.default("USD"),
 		totalPrizeValue: integer("total_prize_value").notNull().default(0),
+		cashPrizeStatus: text("cash_prize_status").notNull().default("unannounced"),
+		goodiesAvailable: boolean("goodies_available").notNull().default(false),
 		startDate: timestamp("start_date", { withTimezone: true }).notNull(),
 		endDate: timestamp("end_date", { withTimezone: true }).notNull(),
 		registrationDeadline: timestamp("registration_deadline", {
@@ -188,6 +190,10 @@ export const hackathons = pgTable(
 		check(
 			"hackathons_prize_nonnegative_ck",
 			sql`${table.totalPrizeValue} >= 0`,
+		),
+		check(
+			"hackathons_cash_prize_status_ck",
+			sql`${table.cashPrizeStatus} in ('announced', 'unannounced', 'no-cash-prize')`,
 		),
 	],
 );

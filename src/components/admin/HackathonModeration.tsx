@@ -67,6 +67,8 @@ function manualDraft(): ReviewEvent {
 		applicationStatus: "upcoming",
 		prizeCurrency: "INR",
 		totalPrizeValue: 0,
+		cashPrizeStatus: "unannounced",
+		goodiesAvailable: false,
 		source: "manual",
 		verified: false,
 		published: false,
@@ -113,6 +115,8 @@ function downloadEventIssues(issues: BulkIssue[]) {
 		"application_status",
 		"prize_currency",
 		"total_prize_value",
+		"cash_prize_status",
+		"goodies_available",
 		"import_issues",
 	];
 	const csvCell = (value: string): string => {
@@ -137,6 +141,8 @@ function downloadEventIssues(issues: BulkIssue[]) {
 				issue.values.application_status,
 				issue.values.prize_currency,
 				issue.values.total_prize_value,
+				issue.values.cash_prize_status,
+				issue.values.goodies_available,
 				`Row ${issue.rowNumber}: ${issue.messages.join("; ")}`,
 			]
 				.map(csvCell)
@@ -335,6 +341,8 @@ export function HackathonModeration() {
 								applicationStatus: draft.applicationStatus,
 								prizeCurrency: draft.prizeCurrency.toUpperCase(),
 								totalPrizeValue: draft.totalPrizeValue,
+								cashPrizeStatus: draft.cashPrizeStatus,
+								goodiesAvailable: draft.goodiesAvailable,
 								...(action === "create" ? {} : { id: draft.id }),
 							},
 						};
@@ -956,15 +964,30 @@ export function HackathonModeration() {
 													<p className="mt-1 text-xs text-slate-500">
 														{event.organizer}
 													</p>
-													<p className="mt-1 text-xs font-semibold text-amber-200">
-														{formatPrize(
-															event.prizeCurrency,
-															event.totalPrizeValue,
-														)}{" "}
-														<span className="font-normal text-slate-400">
-															{event.prizeCurrency} total prize
-														</span>
-													</p>
+													<div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+														{event.cashPrizeStatus === "announced" ? (
+															<span className="font-semibold text-amber-200">
+																{formatPrize(
+																	event.prizeCurrency,
+																	event.totalPrizeValue,
+																)}
+																<span className="ml-1 font-normal text-slate-400">
+																	cash prizes
+																</span>
+															</span>
+														) : (
+															<span className="rounded-full border border-fuchsia-300/25 bg-fuchsia-300/10 px-2 py-1 font-semibold text-fuchsia-200">
+																{event.cashPrizeStatus === "unannounced"
+																	? "Cash prize TBA"
+																	: "No cash prize"}
+															</span>
+														)}
+														{event.goodiesAvailable && (
+															<span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-2 py-1 font-medium text-emerald-200">
+																Goodies
+															</span>
+														)}
+													</div>
 												</td>
 												<td className="px-4 py-3 capitalize text-slate-300">
 													{event.format.replace("-", " ")}
@@ -1533,6 +1556,32 @@ export function HackathonModeration() {
 											/>
 											{fieldIssue("registrationDeadline")}
 										</label>
+										<label className="text-sm sm:col-span-2">
+											Cash prize
+											<select
+												id="event-field-cashPrizeStatus"
+												value={draft.cashPrizeStatus}
+												onChange={(event) => {
+													const value = event.target.value;
+													if (
+														value === "announced" ||
+														value === "unannounced" ||
+														value === "no-cash-prize"
+													) {
+														setField("cashPrizeStatus", value);
+														if (value !== "announced")
+															setField("totalPrizeValue", 0);
+													}
+												}}
+												className="mt-1 w-full rounded-lg border border-white/10 bg-black/20 p-2"
+											>
+												<option value="announced">Amount announced</option>
+												<option value="unannounced">
+													Cash prize not announced
+												</option>
+												<option value="no-cash-prize">No cash prize</option>
+											</select>
+										</label>
 										<div className="grid grid-cols-2 gap-2">
 											<label className="text-sm">
 												Currency
@@ -1540,6 +1589,7 @@ export function HackathonModeration() {
 													id="event-field-prizeCurrency"
 													maxLength={3}
 													value={draft.prizeCurrency}
+													disabled={draft.cashPrizeStatus !== "announced"}
 													onChange={(event) =>
 														setField(
 															"prizeCurrency",
@@ -1563,6 +1613,7 @@ export function HackathonModeration() {
 													type="number"
 													min={0}
 													value={draft.totalPrizeValue}
+													disabled={draft.cashPrizeStatus !== "announced"}
 													onChange={(event) =>
 														setField(
 															"totalPrizeValue",
@@ -1580,10 +1631,21 @@ export function HackathonModeration() {
 												{fieldIssue("totalPrizeValue")}
 											</label>
 										</div>
+										<label className="flex items-center gap-2 text-sm sm:col-span-2">
+											<input
+												type="checkbox"
+												checked={draft.goodiesAvailable}
+												onChange={(event) =>
+													setField("goodiesAvailable", event.target.checked)
+												}
+												className="h-4 w-4 accent-cyan-200"
+											/>
+											Goodies / swag will be provided
+										</label>
 										<p className="text-xs text-slate-500 sm:col-span-2">
-											Use the currency printed on the official event page (for
-											example, USD with 5000 for a US$5,000 prize). The amount
-											is never converted automatically.
+											Enter a prize amount only when the organizer has announced
+											it. Keep cash prizes separate from goodies, which are not
+											a cash value. Amounts are never converted automatically.
 										</p>
 										<div className="flex flex-wrap gap-2 border-t border-white/10 pt-5 sm:col-span-2">
 											{isCreating ? (
@@ -1749,16 +1811,24 @@ export function HackathonModeration() {
 						</div>
 						<div className="mt-5 grid gap-3 sm:grid-cols-2">
 							<div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-								<p className="text-xs text-slate-400">Total prize pool</p>
-								<p className="mt-1 text-xl font-semibold text-amber-200">
-									{formatPrize(
-										previewEvent.prizeCurrency,
-										previewEvent.totalPrizeValue,
-									)}
+								<p className="text-xs text-slate-400">Cash prizes</p>
+								<p
+									className={`mt-1 text-xl font-semibold ${previewEvent.cashPrizeStatus === "announced" ? "text-amber-200" : "text-fuchsia-200"}`}
+								>
+									{previewEvent.cashPrizeStatus === "announced"
+										? formatPrize(
+												previewEvent.prizeCurrency,
+												previewEvent.totalPrizeValue,
+											)
+										: previewEvent.cashPrizeStatus === "unannounced"
+											? "Amount to be announced"
+											: "No cash prize announced"}
 								</p>
-								<p className="text-xs text-slate-500">
-									Currency: {previewEvent.prizeCurrency}
-								</p>
+								{previewEvent.goodiesAvailable && (
+									<p className="mt-2 inline-flex rounded-full border border-emerald-300/25 bg-emerald-300/10 px-2.5 py-1 text-xs font-medium text-emerald-200">
+										Goodies / swag provided
+									</p>
+								)}
 							</div>
 							<div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
 								<p className="text-xs text-slate-400">
@@ -1816,6 +1886,16 @@ export function HackathonModeration() {
 						<p>
 							<strong className="text-white/80">Application status:</strong>{" "}
 							upcoming, open, closed, or ended. Blank defaults to upcoming.
+						</p>
+						<p>
+							<strong className="text-white/80">Cash prize:</strong> use
+							announced, unannounced, or no-cash-prize. If omitted, a positive
+							amount is treated as announced; a blank or zero amount is treated
+							as unannounced.
+						</p>
+						<p>
+							<strong className="text-white/80">Goodies:</strong> set
+							goodies_available to true or false.
 						</p>
 						<p>
 							<strong className="text-white/80">Dates:</strong> ISO with

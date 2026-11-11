@@ -133,7 +133,11 @@ function normalizedPlace(text: string): {
 	return { city: null, country: null, coordinates: null };
 }
 
-function parsePrize(text: string): { value: number; currency: string } {
+function parsePrize(text: string): {
+	value: number;
+	currency: string;
+	cashPrizeStatus: "announced" | "unannounced" | "no-cash-prize";
+} {
 	const currency = /₹|\bINR\b|rupees?/i.test(text)
 		? "INR"
 		: /€|\bEUR\b/i.test(text)
@@ -143,17 +147,25 @@ function parsePrize(text: string): { value: number; currency: string } {
 				: /\$|\bUSD\b/i.test(text)
 					? "USD"
 					: "INR";
-	const hasPrizeContext = /(prize|pool|award|reward|bounty)/i.test(text);
-	const match =
-		text.match(
-			/(?:₹|\$|€|£|\bINR\b|\bUSD\b|\bEUR\b|\bGBP\b)\s*(\d[\d,]*(?:\.\d+)?)\s*([kKmM])?/i,
-		) ??
-		(hasPrizeContext
-			? text.match(
-					/(?:prize(?: pool)?|awards?|rewards?|bounty)[^\d]{0,24}(\d[\d,]*(?:\.\d+)?)\s*([kKmM])?/i,
+	const currencyAmount = text.match(
+		/(?:₹|\$|€|£|\bINR\b|\bUSD\b|\bEUR\b|\bGBP\b)\s*(\d[\d,]*(?:\.\d+)?)\s*([kKmM])?/i,
+	);
+	const contextualAmount = text.match(
+		/\b(?:cash\s+)?(?:prizes?|prize\s+pool|awards?|rewards?|bount(?:y|ies))\b\s*(?:(?:amount|pool|of|worth|valued\s+at|up\s+to|total)\s*){0,2}[:-]?\s*(\d[\d,]*(?:\.\d+)?)\s*([kKmM])?/i,
+	);
+	const match = currencyAmount ?? contextualAmount;
+	if (!match?.[1]) {
+		return {
+			value: 0,
+			currency,
+			cashPrizeStatus:
+				/\bno\s+(?:cash\s+)?prizes?\b|\bwithout\s+(?:a\s+)?cash\s+prize\b/i.test(
+					text,
 				)
-			: null);
-	if (!match?.[1]) return { value: 0, currency };
+					? "no-cash-prize"
+					: "unannounced",
+		};
+	}
 	const base = Number(match[1].replaceAll(",", ""));
 	const factor =
 		match[2]?.toLowerCase() === "m"
@@ -166,6 +178,7 @@ function parsePrize(text: string): { value: number; currency: string } {
 			? Math.round(base * factor)
 			: 0,
 		currency,
+		cashPrizeStatus: "announced",
 	};
 }
 
@@ -319,6 +332,8 @@ export async function sanitizeHackathon(
 		coordinates,
 		prizeCurrency: prize.currency,
 		totalPrizeValue: prize.value,
+		cashPrizeStatus: prize.cashPrizeStatus,
+		goodiesAvailable: /\b(?:goodies|swag)\b/i.test(text),
 		startDate,
 		endDate,
 		registrationDeadline: deadline,

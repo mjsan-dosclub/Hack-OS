@@ -1,6 +1,7 @@
 "use client";
 
 import { Bookmark, ExternalLink, MapPin } from "lucide-react";
+import { formatHackathonPrize } from "@/lib/hackathonPrize";
 import type { Hackathon } from "@/types/hackathon";
 
 interface MapEventCardProps {
@@ -19,14 +20,6 @@ function formatEventDate(event: Hackathon): string {
 		timeZone: "UTC",
 	});
 	return `${formatter.format(new Date(event.startDate))} – ${formatter.format(new Date(event.endDate))}`;
-}
-
-function formatPrize(event: Hackathon): string {
-	return new Intl.NumberFormat("en-IN", {
-		style: "currency",
-		currency: event.prizeCurrency,
-		maximumFractionDigits: 0,
-	}).format(event.totalPrizeValue);
 }
 
 export function MapEventCard({
@@ -67,17 +60,26 @@ export function MapEventCard({
 						)}
 					</p>
 				</div>
-				<p className="shrink-0 text-right text-xs font-semibold text-amber-100">
-					{formatPrize(event)}
-					<span className="mt-0.5 block text-[9px] font-normal text-white/35">
-						prize pool
-					</span>
+				<p
+					className={`shrink-0 text-right text-xs font-semibold ${event.cashPrizeStatus === "announced" ? "text-amber-100" : "text-fuchsia-200"}`}
+				>
+					{formatHackathonPrize(event)}
+					{event.cashPrizeStatus === "unannounced" && (
+						<span className="mt-0.5 block text-[9px] font-semibold text-fuchsia-100">
+							Prize TBA
+						</span>
+					)}
 				</p>
 			</div>
 			<p className="mt-2 flex min-w-0 items-center gap-1.5 text-[10px] text-white/45">
 				<MapPin className="size-3 shrink-0 text-emerald-100/70" />
 				<span className="truncate">{location}</span>
 			</p>
+			{event.goodiesAvailable && (
+				<p className="mt-2 inline-flex rounded-full border border-emerald-200/20 bg-emerald-200/[0.07] px-2 py-1 text-[9px] font-medium text-emerald-100">
+					Goodies provided
+				</p>
+			)}
 			<div className="mt-3 flex items-center gap-2 border-t border-white/[0.06] pt-2.5">
 				<button
 					type="button"
