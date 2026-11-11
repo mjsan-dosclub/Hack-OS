@@ -17,11 +17,17 @@ export default defineConfig({
 	},
 	projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
 	webServer: {
-		command: "pnpm build && pnpm start -- --hostname 127.0.0.1 --port 3000",
+		command:
+			"pnpm build && pnpm exec next start --hostname 127.0.0.1 --port 3000",
 		url: baseURL,
 		reuseExistingServer: !process.env.CI,
 		timeout: 120_000,
 		env: {
+			// Public desktop smoke tests use local, non-secret auth configuration.
+			// No Supabase instance or production credentials are required.
+			NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",
+			NEXT_PUBLIC_SUPABASE_ANON_KEY: "smoke-test-anon-key",
+			DATABASE_URL: "",
 			JARVISLABS_API_KEY: "",
 			JARVISLABS_BASE_URL: "",
 			JARVISLABS_MODEL: "",
