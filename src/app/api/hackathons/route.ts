@@ -7,6 +7,7 @@ import {
 	hackathonTracks,
 	hackathonTags,
 	hackathonTagLinks,
+	hackathonRewards,
 } from "@/db/schema";
 import { hackathonDisplaySchema } from "@/schemas/hackathon";
 
@@ -40,7 +41,7 @@ export async function GET() {
 			.orderBy(asc(hackathons.registrationDeadline), asc(hackathons.startDate))
 			.limit(250);
 		const ids = rows.map((row) => row.id);
-		const [tracks, tags] = ids.length
+		const [tracks, tags, rewards] = ids.length
 			? await Promise.all([
 					db
 						.select()
@@ -59,8 +60,12 @@ export async function GET() {
 							eq(hackathonTagLinks.tagId, hackathonTags.id),
 						)
 						.where(inArray(hackathonTagLinks.hackathonId, ids)),
+					db
+						.select()
+						.from(hackathonRewards)
+						.where(inArray(hackathonRewards.hackathonId, ids)),
 				])
-			: [[], []];
+			: [[], [], []];
 		const result = responseSchema.safeParse({
 			events: rows.map((row) => ({
 				id: row.id,
@@ -101,6 +106,19 @@ export async function GET() {
 				tags: tags
 					.filter((tag) => tag.hackathonId === row.id)
 					.map((tag) => ({ id: tag.id, slug: tag.slug, name: tag.name })),
+				rewards: rewards
+					.filter((reward) => reward.hackathonId === row.id)
+					.map((reward) => ({
+						id: reward.id,
+						name: reward.name,
+						category: reward.category,
+						recipient: reward.recipient,
+						details: reward.details,
+						amount: reward.amount === null ? null : Number(reward.amount),
+						currency: reward.currency,
+						sourceExcerpt: reward.sourceExcerpt,
+						sourceUrl: reward.sourceUrl,
+					})),
 			})),
 		});
 		if (!result.success)

@@ -2,6 +2,7 @@ import { and, eq, notInArray } from "drizzle-orm";
 import { getDatabase } from "../../db/client.ts";
 import {
 	hackathonTagLinks,
+	hackathonRewards,
 	hackathonTags,
 	hackathonTracks,
 	hackathons,
@@ -158,6 +159,20 @@ async function upsertHackathon(
 				.values(
 					record.tracks.map((track) => ({ ...track, hackathonId: saved.id })),
 				);
+		}
+		if (!existing || record.rewards.length > 0) {
+			await tx
+				.delete(hackathonRewards)
+				.where(eq(hackathonRewards.hackathonId, saved.id));
+		}
+		if (record.rewards.length > 0) {
+			await tx.insert(hackathonRewards).values(
+				record.rewards.map((reward) => ({
+					...reward,
+					hackathonId: saved.id,
+					amount: reward.amount === null ? null : String(reward.amount),
+				})),
+			);
 		}
 
 		const tagIds: string[] = [];

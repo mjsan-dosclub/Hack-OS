@@ -23,6 +23,7 @@ import type { z } from "zod";
 import { AdminNavigation } from "@/components/admin/AdminNavigation";
 import { AdminSkeleton } from "@/components/admin/AdminSkeleton";
 import { SpreadsheetImportDialog } from "@/components/admin/SpreadsheetImportDialog";
+import { HACKATHON_REWARD_CATEGORIES } from "@/types/hackathon";
 import {
 	type ApprovedEvent,
 	approvedEventsListSchema,
@@ -69,6 +70,7 @@ function manualDraft(): ReviewEvent {
 		totalPrizeValue: 0,
 		cashPrizeStatus: "unannounced",
 		goodiesAvailable: false,
+		rewards: [],
 		source: "manual",
 		verified: false,
 		published: false,
@@ -117,6 +119,7 @@ function downloadEventIssues(issues: BulkIssue[]) {
 		"total_prize_value",
 		"cash_prize_status",
 		"goodies_available",
+		"rewards_json",
 		"import_issues",
 	];
 	const csvCell = (value: string): string => {
@@ -143,6 +146,7 @@ function downloadEventIssues(issues: BulkIssue[]) {
 				issue.values.total_prize_value,
 				issue.values.cash_prize_status,
 				issue.values.goodies_available,
+				issue.values.rewards_json,
 				`Row ${issue.rowNumber}: ${issue.messages.join("; ")}`,
 			]
 				.map(csvCell)
@@ -343,6 +347,13 @@ export function HackathonModeration() {
 								totalPrizeValue: draft.totalPrizeValue,
 								cashPrizeStatus: draft.cashPrizeStatus,
 								goodiesAvailable: draft.goodiesAvailable,
+								rewards: draft.rewards.map((reward) => ({
+									...reward,
+									sourceUrl:
+										draft.source === "manual"
+											? draft.websiteUrl
+											: reward.sourceUrl || draft.websiteUrl,
+								})),
 								...(action === "create" ? {} : { id: draft.id }),
 							},
 						};
@@ -574,6 +585,45 @@ export function HackathonModeration() {
 			const next = { ...current };
 			delete next[key];
 			return next;
+		});
+	}
+
+	function updateReward(
+		index: number,
+		field: keyof ReviewEvent["rewards"][number],
+		value: string | number | null,
+	) {
+		setDraft((current) => {
+			if (!current) return current;
+			return {
+				...current,
+				rewards: current.rewards.map((reward, rewardIndex) =>
+					rewardIndex === index ? { ...reward, [field]: value } : reward,
+				),
+			};
+		});
+	}
+
+	function changeRewardCategory(
+		index: number,
+		category: (typeof HACKATHON_REWARD_CATEGORIES)[number],
+	) {
+		setDraft((current) => {
+			if (!current) return current;
+			return {
+				...current,
+				rewards: current.rewards.map((reward, rewardIndex) =>
+					rewardIndex === index
+						? {
+								...reward,
+								category,
+								...(category === "cash"
+									? {}
+									: { amount: null, currency: null }),
+							}
+						: reward,
+				),
+			};
 		});
 	}
 
@@ -978,7 +1028,7 @@ export function HackathonModeration() {
 														) : (
 															<span className="rounded-full border border-fuchsia-300/25 bg-fuchsia-300/10 px-2 py-1 font-semibold text-fuchsia-200">
 																{event.cashPrizeStatus === "unannounced"
-																	? "Cash prize TBA"
+																	? "Cash prize not listed"
 																	: "No cash prize"}
 															</span>
 														)}
@@ -987,6 +1037,17 @@ export function HackathonModeration() {
 																Goodies
 															</span>
 														)}
+														{event.rewards.slice(0, 2).map((reward) => (
+															<span
+																key={
+																	reward.id ??
+																	`${event.id}-${reward.name}-${reward.recipient}`
+																}
+																className="rounded-full border border-violet-300/25 bg-violet-300/10 px-2 py-1 text-violet-200"
+															>
+																{reward.name}
+															</span>
+														))}
 													</div>
 												</td>
 												<td className="px-4 py-3 capitalize text-slate-300">
@@ -1647,6 +1708,195 @@ export function HackathonModeration() {
 											it. Keep cash prizes separate from goodies, which are not
 											a cash value. Amounts are never converted automatically.
 										</p>
+										<section className="space-y-3 border-t border-white/10 pt-5 sm:col-span-2">
+											<div className="flex flex-wrap items-center justify-between gap-3">
+												<div>
+													<h3 className="text-base font-semibold">
+														Prizes and rewards
+													</h3>
+													<p className="mt-1 text-xs text-slate-400">
+														Add cash and non-cash items from the official event
+														page. Keep referral promotions out of this list.
+													</p>
+												</div>
+												<button
+													type="button"
+													onClick={() =>
+														setDraft((current) =>
+															current
+																? {
+																		...current,
+																		rewards: [
+																			...current.rewards,
+																			{
+																				id: crypto.randomUUID(),
+																				name: "",
+																				category: "other",
+																				recipient: "Not specified",
+																				details: "",
+																				amount: null,
+																				currency: null,
+																				sourceExcerpt: "",
+																				sourceUrl: current.websiteUrl,
+																			},
+																		],
+																	}
+																: current,
+														)
+													}
+													className="rounded-lg border border-cyan-200/25 px-3 py-2 text-sm text-cyan-100"
+												>
+													<Plus size={14} className="mr-1 inline" /> Add reward
+												</button>
+											</div>
+											{draft.rewards.length === 0 && (
+												<p className="rounded-lg border border-dashed border-white/10 p-4 text-sm text-slate-500">
+													No separate rewards listed. Add them when the official
+													event page provides details.
+												</p>
+											)}
+											{draft.rewards.map((reward, index) => (
+												<div
+													key={
+														reward.id ??
+														`${draft.id}-${reward.name}-${reward.recipient}`
+													}
+													className="grid gap-3 rounded-xl border border-white/10 bg-white/[0.025] p-4 sm:grid-cols-2"
+												>
+													<label className="text-sm">
+														Reward name
+														<input
+															value={reward.name}
+															onChange={(event) =>
+																updateReward(index, "name", event.target.value)
+															}
+															maxLength={180}
+															className="mt-1 w-full rounded-lg border border-white/10 bg-black/20 p-2"
+															placeholder="HackerRank Infinity Plan"
+														/>
+													</label>
+													<label className="text-sm">
+														Category
+														<select
+															value={reward.category}
+															onChange={(event) =>
+																changeRewardCategory(
+																	index,
+																	HACKATHON_REWARD_CATEGORIES.find(
+																		(category) =>
+																			category === event.target.value,
+																	) ?? "other",
+																)
+															}
+															className="mt-1 w-full rounded-lg border border-white/10 bg-black/20 p-2"
+														>
+															{HACKATHON_REWARD_CATEGORIES.map((category) => (
+																<option key={category} value={category}>
+																	{category.replaceAll("-", " ")}
+																</option>
+															))}
+														</select>
+													</label>
+													<label className="text-sm">
+														Recipient
+														<input
+															value={reward.recipient}
+															onChange={(event) =>
+																updateReward(
+																	index,
+																	"recipient",
+																	event.target.value,
+																)
+															}
+															maxLength={100}
+															className="mt-1 w-full rounded-lg border border-white/10 bg-black/20 p-2"
+															placeholder="Winner, runner-up, all participants"
+														/>
+													</label>
+													{reward.category === "cash" && (
+														<div className="grid grid-cols-[1fr_90px] gap-2">
+															<label className="text-sm">
+																Amount
+																<input
+																	type="number"
+																	min={0}
+																	value={reward.amount ?? ""}
+																	onChange={(event) =>
+																		updateReward(
+																			index,
+																			"amount",
+																			event.target.value
+																				? Number(event.target.value)
+																				: null,
+																		)
+																	}
+																	className="mt-1 w-full rounded-lg border border-white/10 bg-black/20 p-2"
+																/>
+															</label>
+															<label className="text-sm">
+																Currency
+																<input
+																	maxLength={3}
+																	value={reward.currency ?? ""}
+																	onChange={(event) =>
+																		updateReward(
+																			index,
+																			"currency",
+																			event.target.value.toUpperCase() || null,
+																		)
+																	}
+																	className="mt-1 w-full rounded-lg border border-white/10 bg-black/20 p-2"
+																	placeholder="INR"
+																/>
+															</label>
+														</div>
+													)}
+													<label className="text-sm sm:col-span-2">
+														Details
+														<textarea
+															value={reward.details}
+															onChange={(event) =>
+																updateReward(
+																	index,
+																	"details",
+																	event.target.value,
+																)
+															}
+															maxLength={2000}
+															rows={2}
+															className="mt-1 w-full rounded-lg border border-white/10 bg-black/20 p-2"
+															placeholder="Optional description or terms"
+														/>
+													</label>
+													{reward.sourceExcerpt && (
+														<blockquote className="text-xs text-slate-400 sm:col-span-2">
+															Source text: “{reward.sourceExcerpt}”
+														</blockquote>
+													)}
+													<div className="flex justify-end sm:col-span-2">
+														<button
+															type="button"
+															onClick={() =>
+																setDraft((current) =>
+																	current
+																		? {
+																				...current,
+																				rewards: current.rewards.filter(
+																					(_item, itemIndex) =>
+																						itemIndex !== index,
+																				),
+																			}
+																		: current,
+																)
+															}
+															className="rounded-lg border border-rose-300/20 px-3 py-2 text-xs text-rose-200"
+														>
+															Remove reward
+														</button>
+													</div>
+												</div>
+											))}
+										</section>
 										<div className="flex flex-wrap gap-2 border-t border-white/10 pt-5 sm:col-span-2">
 											{isCreating ? (
 												<>
@@ -1821,7 +2071,7 @@ export function HackathonModeration() {
 												previewEvent.totalPrizeValue,
 											)
 										: previewEvent.cashPrizeStatus === "unannounced"
-											? "Amount to be announced"
+											? "Cash prize not listed"
 											: "No cash prize announced"}
 								</p>
 								{previewEvent.goodiesAvailable && (
@@ -1830,6 +2080,31 @@ export function HackathonModeration() {
 									</p>
 								)}
 							</div>
+							{previewEvent.rewards.length > 0 && (
+								<div className="mt-4 rounded-xl border border-violet-300/20 bg-violet-300/[0.06] p-4">
+									<h3 className="font-semibold">Other listed rewards</h3>
+									<ul className="mt-2 space-y-2 text-sm text-slate-300">
+										{previewEvent.rewards.map((reward) => (
+											<li
+												key={
+													reward.id ??
+													`${previewEvent.id}-${reward.name}-${reward.recipient}`
+												}
+											>
+												<span className="font-medium text-slate-100">
+													{reward.name}
+												</span>{" "}
+												· {reward.recipient}
+												{reward.sourceExcerpt && (
+													<p className="mt-1 text-xs text-slate-500">
+														Source: “{reward.sourceExcerpt}”
+													</p>
+												)}
+											</li>
+										))}
+									</ul>
+								</div>
+							)}
 							<div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
 								<p className="text-xs text-slate-400">
 									Dates · {previewEvent.format.replace("-", " ")}

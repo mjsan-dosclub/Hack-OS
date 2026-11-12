@@ -9,6 +9,70 @@ const clean = (value: string | undefined): string | undefined => {
 	return text ? text.slice(0, 10_000) : undefined;
 };
 
+function extractRewardCandidates(
+	$: cheerio.CheerioAPI,
+): NonNullable<RawHackathonData["rewards"]> {
+	const candidates: NonNullable<RawHackathonData["rewards"]> = [];
+	const seen = new Set<string>();
+	$("h1,h2,h3,h4,h5,[role='heading']").each((_index, element) => {
+		const heading = $(element);
+		const title = clean(heading.text()) ?? "";
+		if (
+			!/reward|prize|recognition|award/i.test(title) ||
+			/referr?al|refer\s*&\s*win/i.test(title)
+		)
+			return;
+		const section = heading.closest("section, article");
+		const scope = section.length ? section : heading.parent();
+		const beforeCount = candidates.length;
+		let recipient = "Not specified";
+		scope.find("h1,h2,h3,h4,h5,li").each((_itemIndex, item) => {
+			const node = $(item);
+			if (node.is("li")) {
+				const excerpt = clean(node.text());
+				if (
+					!excerpt ||
+					excerpt.length > 500 ||
+					/referral|refer\s*(?:now|&|and\s+win)/i.test(excerpt) ||
+					seen.has(excerpt.toLowerCase())
+				)
+					return;
+				seen.add(excerpt.toLowerCase());
+				candidates.push({
+					name: excerpt.slice(0, 180),
+					recipient,
+					sourceExcerpt: excerpt,
+				});
+				return;
+			}
+			const subheading = clean(node.text()) ?? "";
+			if (/\bwinner\b|1st place|first place/i.test(subheading))
+				recipient = "Winner";
+			else if (/runner[ -]?up|2nd place|second place/i.test(subheading))
+				recipient = "Runner-up";
+			else if (
+				/all participants|every participant|participants/i.test(subheading)
+			)
+				recipient = "All participants";
+		});
+		if (candidates.length === beforeCount) {
+			const adjacent = clean(heading.next().text());
+			if (
+				adjacent &&
+				adjacent.length <= 500 &&
+				!seen.has(adjacent.toLowerCase())
+			) {
+				seen.add(adjacent.toLowerCase());
+				candidates.push({
+					name: adjacent.slice(0, 180),
+					sourceExcerpt: adjacent,
+				});
+			}
+		}
+	});
+	return candidates.slice(0, 40);
+}
+
 function labeledText(
 	text: string,
 	labels: string,
@@ -148,6 +212,7 @@ export function parseEventListing(
 			endDateText: clean(input.end),
 			registrationDeadlineText: clean(input.deadline),
 			prizeText: clean(input.prize),
+			rewards: [],
 			tags: (input.tags ?? [])
 				.map((tag) => tag.trim())
 				.filter(Boolean)
@@ -365,6 +430,7 @@ export function parseEventDetailPage(
 		.replace(/\s+/g, " ")
 		.trim()
 		.slice(0, 10_000);
+	const rewards = extractRewardCandidates($);
 	const eligibility = labeledText(
 		bodyText,
 		"eligibility|who can apply|who can participate",
@@ -395,6 +461,7 @@ export function parseEventDetailPage(
 		endDateText,
 		registrationDeadlineText: deadline ?? structured?.registrationDeadlineText,
 		prizeText: prize,
+		rewards,
 		tags: structured?.tags ?? [],
 		tracks: structured?.tracks ?? [],
 	};

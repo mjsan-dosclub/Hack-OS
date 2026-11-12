@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import type { z } from "zod";
 import { getDatabase } from "@/db/client";
-import { hackathons } from "@/db/schema";
+import { hackathonRewards, hackathons } from "@/db/schema";
 import {
 	MemberAccessError,
 	requireAdminMember,
@@ -204,6 +204,29 @@ function parseBulkEvents(
 			"url",
 			"registration link",
 		]);
+		const rewardsJson = value(row, ["rewards json", "rewards"]);
+		let rewards: unknown[] = [];
+		if (rewardsJson) {
+			try {
+				const decoded: unknown = JSON.parse(rewardsJson);
+				if (!Array.isArray(decoded)) throw new Error("Expected an array.");
+				rewards = decoded.map((reward) => {
+					if (typeof reward !== "object" || reward === null) return reward;
+					return {
+						...reward,
+						sourceExcerpt:
+							typeof Reflect.get(reward, "sourceExcerpt") === "string"
+								? Reflect.get(reward, "sourceExcerpt")
+								: typeof Reflect.get(reward, "name") === "string"
+									? Reflect.get(reward, "name")
+									: "",
+						sourceUrl: officialUrl,
+					};
+				});
+			} catch {
+				rewards = [{ name: "", sourceUrl: "invalid" }];
+			}
+		}
 		const description = usesLegacyColumnOrder
 			? value(row, ["banner url", "banner image url", "image url"])
 			: value(row, ["description", "summary"]);
@@ -251,6 +274,7 @@ function parseBulkEvents(
 			cash_prize_status:
 				prizeStatusText || (prizeValue > 0 ? "announced" : "unannounced"),
 			goodies_available: goodiesText,
+			rewards_json: rewardsJson,
 		};
 		const parsed = manualEventSchema.safeParse({
 			title,
@@ -271,6 +295,7 @@ function parseBulkEvents(
 				: -1,
 			cashPrizeStatus,
 			goodiesAvailable,
+			rewards,
 		});
 		if (!parsed.success) {
 			issues.push({
@@ -362,7 +387,7 @@ export async function POST(request: Request) {
 		);
 		await db.transaction(async (tx) => {
 			for (const row of toCreate) {
-				const event = row.event;
+				const { rewards, ...event } = row.event;
 				const baseSlug =
 					event.title
 						.toLowerCase()
@@ -371,18 +396,30 @@ export async function POST(request: Request) {
 						.replace(/[^a-z0-9]+/g, "-")
 						.replace(/^-|-$/g, "")
 						.slice(0, 160) || "hackathon";
-				await tx.insert(hackathons).values({
-					slug: `${baseSlug}-${crypto.randomUUID().slice(0, 8)}`,
-					...event,
-					startDate: new Date(event.startDate),
-					endDate: new Date(event.endDate),
-					registrationDeadline: event.registrationDeadline
-						? new Date(event.registrationDeadline)
-						: null,
-					source: "manual",
-					verified: false,
-					published: false,
-				});
+				const [created] = await tx
+					.insert(hackathons)
+					.values({
+						slug: `${baseSlug}-${crypto.randomUUID().slice(0, 8)}`,
+						...event,
+						startDate: new Date(event.startDate),
+						endDate: new Date(event.endDate),
+						registrationDeadline: event.registrationDeadline
+							? new Date(event.registrationDeadline)
+							: null,
+						source: "manual",
+						verified: false,
+						published: false,
+					})
+					.returning({ id: hackathons.id });
+				if (created && rewards.length > 0) {
+					await tx.insert(hackathonRewards).values(
+						rewards.map((reward) => ({
+							...reward,
+							hackathonId: created.id,
+							amount: reward.amount === null ? null : String(reward.amount),
+						})),
+					);
+				}
 			}
 		});
 		const result = bulkManualEventsResultSchema.safeParse({

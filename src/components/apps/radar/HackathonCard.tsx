@@ -10,6 +10,7 @@ import {
 	MapPin,
 } from "lucide-react";
 import { formatHackathonPrize } from "@/lib/hackathonPrize";
+import { RewardList } from "@/components/apps/radar/RewardList";
 import type { Hackathon } from "@/types/hackathon";
 
 interface HackathonCardProps {
@@ -199,7 +200,7 @@ export function HackathonCard({
 					</p>
 					{event.cashPrizeStatus === "unannounced" && (
 						<span className="rounded-full border border-fuchsia-200/25 bg-fuchsia-200/10 px-2 py-0.5 text-[9px] font-semibold text-fuchsia-100">
-							Prize TBA
+							Cash details pending
 						</span>
 					)}
 					{event.goodiesAvailable && (
@@ -207,6 +208,7 @@ export function HackathonCard({
 							Goodies
 						</span>
 					)}
+					<RewardList rewards={event.rewards} compact />
 				</div>
 				<p
 					className={`mt-1 flex items-center gap-1.5 text-[11px] ${deadline.expired ? "text-rose-300/75" : deadline.urgent ? "text-amber-200" : "text-emerald-200/80"}`}

@@ -110,9 +110,12 @@ function startIdeationText(event: Hackathon): string {
 		event.cashPrizeStatus === "announced"
 			? `${event.prizeCurrency} ${event.totalPrizeValue}`
 			: event.cashPrizeStatus === "unannounced"
-				? "not announced"
+				? "cash prize not listed"
 				: "no cash prize";
-	return `Help me brainstorm a hackathon project for ${event.title}, organized by ${event.organizer}. Event description: ${event.description}. Tracks: ${tracks || "No tracks published"}. Themes: ${event.tags.map((tag) => tag.name).join(", ")}. Cash prize: ${cashPrize}. Goodies available: ${event.goodiesAvailable ? "yes" : "not listed"}. Suggest an original, achievable student project.`;
+	const rewards = event.rewards
+		.map((reward) => `${reward.name} (${reward.category}; ${reward.recipient})`)
+		.join("; ");
+	return `Help me brainstorm a hackathon project for ${event.title}, organized by ${event.organizer}. Event description: ${event.description}. Tracks: ${tracks || "No tracks published"}. Themes: ${event.tags.map((tag) => tag.name).join(", ")}. Cash prize: ${cashPrize}. Other listed rewards: ${rewards || "none listed"}. Goodies available: ${event.goodiesAvailable ? "yes" : "not listed"}. Suggest an original, achievable student project.`;
 }
 
 /** Synchronized event list + Leaflet map with optional browser geolocation. */

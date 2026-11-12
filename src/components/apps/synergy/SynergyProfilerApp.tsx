@@ -164,7 +164,7 @@ function MatchResults({ results }: { results: SynergyMatchResponse }) {
 									{event.cashPrizeStatus === "announced"
 										? `${new Intl.NumberFormat("en-IN", { style: "currency", currency: event.prizeCurrency, maximumFractionDigits: 0 }).format(event.totalPrizeValue)} cash prizes`
 										: event.cashPrizeStatus === "unannounced"
-											? "Cash prize TBA"
+											? "Cash prize not listed"
 											: "No cash prize"}
 								</span>
 								{event.goodiesAvailable && (
@@ -172,6 +172,14 @@ function MatchResults({ results }: { results: SynergyMatchResponse }) {
 										Goodies provided
 									</span>
 								)}
+								{event.rewards.map((reward) => (
+									<span
+										key={reward.id}
+										className="rounded-full bg-violet-100 px-2 py-0.5 text-violet-800"
+									>
+										{reward.name} · {reward.recipient}
+									</span>
+								))}
 							</div>
 							<a
 								href={event.websiteUrl}

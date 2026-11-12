@@ -4,6 +4,7 @@ import {
 	CASH_PRIZE_STATUSES,
 	HACKATHON_FORMATS,
 	HACKATHON_SOURCES,
+	HACKATHON_REWARD_CATEGORIES,
 } from "../types/hackathon.ts";
 
 const urlSchema = z
@@ -42,6 +43,42 @@ export const hackathonTagSchema = z
 	})
 	.strict();
 
+export const hackathonRewardSchema = z
+	.object({
+		id: z.string().uuid(),
+		name: z.string().trim().min(1).max(180),
+		category: z.enum(HACKATHON_REWARD_CATEGORIES),
+		recipient: z.string().trim().min(1).max(100),
+		details: z.string().max(2_000),
+		amount: z.number().nonnegative().nullable(),
+		currency: z
+			.string()
+			.regex(/^[A-Z]{3}$/)
+			.nullable(),
+		sourceExcerpt: z.string().max(2_000),
+		sourceUrl: urlSchema,
+	})
+	.strict();
+
+export const hackathonRewardInputSchema = hackathonRewardSchema
+	.extend({ id: z.string().uuid().optional() })
+	.superRefine((reward, context) => {
+		if ((reward.amount === null) !== (reward.currency === null)) {
+			context.addIssue({
+				code: "custom",
+				path: ["amount"],
+				message: "Provide both an amount and currency, or neither.",
+			});
+		}
+		if (reward.category !== "cash" && reward.amount !== null) {
+			context.addIssue({
+				code: "custom",
+				path: ["amount"],
+				message: "Only cash rewards can have a monetary amount.",
+			});
+		}
+	});
+
 const hackathonInsertBaseSchema = z
 	.object({
 		slug: z
@@ -72,6 +109,7 @@ const hackathonInsertBaseSchema = z
 		totalPrizeValue: z.number().int().nonnegative().default(0),
 		cashPrizeStatus: z.enum(CASH_PRIZE_STATUSES).default("unannounced"),
 		goodiesAvailable: z.boolean().default(false),
+		rewards: z.array(hackathonRewardInputSchema).max(40).default([]),
 		startDate: dateSchema,
 		endDate: dateSchema,
 		registrationDeadline: dateSchema.nullable().optional(),
@@ -132,6 +170,7 @@ export const hackathonDisplaySchema = z
 		verified: z.boolean(),
 		tracks: z.array(hackathonTrackSchema),
 		tags: z.array(hackathonTagSchema),
+		rewards: z.array(hackathonRewardSchema).default([]),
 	})
 	.strict();
 

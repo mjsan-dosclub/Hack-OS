@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { generateText } from "ai";
 import { NextResponse } from "next/server";
 import { getDatabase } from "@/db/client";
-import { hackathonTracks, hackathons } from "@/db/schema";
+import { hackathonRewards, hackathonTracks, hackathons } from "@/db/schema";
 import {
 	requireAdminMember,
 	MemberAccessError,
@@ -66,6 +66,15 @@ export async function POST(request: Request) {
 			.from(hackathonTracks)
 			.where(eq(hackathonTracks.hackathonId, parsed.data.id))
 			.limit(10);
+		const rewards = await getDatabase()
+			.select({
+				name: hackathonRewards.name,
+				category: hackathonRewards.category,
+				recipient: hackathonRewards.recipient,
+			})
+			.from(hackathonRewards)
+			.where(eq(hackathonRewards.hackathonId, parsed.data.id))
+			.limit(20);
 		const result = await generateText({
 			model: createJarvisModel(),
 			maxOutputTokens: 260,
@@ -92,6 +101,7 @@ export async function POST(request: Request) {
 								? "not announced"
 								: "none announced",
 					goodiesAvailable: event.goodiesAvailable,
+					listedRewards: rewards,
 					existingDescription: event.description.slice(0, 2_000),
 					publishedTracks: tracks.map((track) => ({
 						title: track.title,

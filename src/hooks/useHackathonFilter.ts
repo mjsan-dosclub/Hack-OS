@@ -5,6 +5,16 @@ import type { Hackathon, HackathonFormat } from "@/types/hackathon";
 
 export type DirectoryStatus = "all" | "open-now" | "upcoming" | "ending-soon";
 export type PrizeThreshold = "any" | "1000" | "5000" | "25000";
+export type RewardFilter =
+	| "all"
+	| "cash"
+	| "software"
+	| "credits"
+	| "certificate"
+	| "interview"
+	| "kit"
+	| "merchandise"
+	| "other";
 export type HackathonSort = "deadline" | "prize" | "start" | "recent";
 export interface HackathonFilters {
 	query: string;
@@ -12,6 +22,7 @@ export interface HackathonFilters {
 	status: DirectoryStatus;
 	tags: string[];
 	prize: PrizeThreshold;
+	reward: RewardFilter;
 	sort: HackathonSort;
 }
 
@@ -32,6 +43,7 @@ const DEFAULT_FILTERS: HackathonFilters = {
 	status: "all",
 	tags: [],
 	prize: "any",
+	reward: "all",
 	sort: "deadline",
 };
 const ENDING_SOON_MS = 48 * 60 * 60 * 1000;
@@ -56,6 +68,19 @@ function isPrize(value: string): value is PrizeThreshold {
 		value === "any" || value === "1000" || value === "5000" || value === "25000"
 	);
 }
+function isRewardFilter(value: string): value is RewardFilter {
+	return [
+		"all",
+		"cash",
+		"software",
+		"credits",
+		"certificate",
+		"interview",
+		"kit",
+		"merchandise",
+		"other",
+	].includes(value);
+}
 function isSort(value: string): value is HackathonSort {
 	return (
 		value === "deadline" ||
@@ -71,6 +96,7 @@ function getInitialFilters(): HackathonFilters {
 	const rawFormat = params.get("mode") ?? "all";
 	const rawStatus = params.get("status") ?? "all";
 	const rawPrize = params.get("prize") ?? "any";
+	const rawReward = params.get("reward") ?? "all";
 	const rawSort = params.get("sort") ?? "deadline";
 	const acceptedTagSlugs = new Set<string>(PRIMARY_TAGS.map((tag) => tag.slug));
 	const requestedTags = params.getAll("tag").map((value) => {
@@ -94,6 +120,7 @@ function getInitialFilters(): HackathonFilters {
 		status: isStatus(rawStatus) ? rawStatus : "all",
 		tags: requestedTags.filter((tag) => acceptedTagSlugs.has(tag)),
 		prize: isPrize(rawPrize) ? rawPrize : "any",
+		reward: isRewardFilter(rawReward) ? rawReward : "all",
 		sort: isSort(rawSort) ? rawSort : "deadline",
 	};
 }
@@ -105,6 +132,7 @@ function writeFiltersToUrl(filters: HackathonFilters): void {
 	if (filters.status !== "all") params.set("status", filters.status);
 	for (const tag of filters.tags) params.append("tag", tag);
 	if (filters.prize !== "any") params.set("prize", filters.prize);
+	if (filters.reward !== "all") params.set("reward", filters.reward);
 	if (filters.sort !== "deadline") params.set("sort", filters.sort);
 	const query = params.toString();
 	const nextUrl = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
@@ -194,12 +222,21 @@ export function useHackathonFilter(events: readonly Hackathon[]) {
 					filters.tags.some((tag) => eventTags.has(tag));
 				const matchesPrize =
 					filters.prize === "any" || event.totalPrizeValue > minimumPrize;
+				const matchesReward =
+					filters.reward === "all" ||
+					(filters.reward === "cash"
+						? event.cashPrizeStatus === "announced" ||
+							event.rewards.some((reward) => reward.category === "cash")
+						: event.rewards.some(
+								(reward) => reward.category === filters.reward,
+							));
 				return (
 					matchesQuery &&
 					matchesFormat &&
 					matchesStatus &&
 					matchesTags &&
-					matchesPrize
+					matchesPrize &&
+					matchesReward
 				);
 			})
 			.sort((a, b) => {

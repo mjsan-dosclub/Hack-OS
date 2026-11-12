@@ -2,6 +2,7 @@
 
 import { Bookmark, ExternalLink, MapPin } from "lucide-react";
 import { formatHackathonPrize } from "@/lib/hackathonPrize";
+import { RewardList } from "@/components/apps/radar/RewardList";
 import type { Hackathon } from "@/types/hackathon";
 
 interface MapEventCardProps {
@@ -66,7 +67,7 @@ export function MapEventCard({
 					{formatHackathonPrize(event)}
 					{event.cashPrizeStatus === "unannounced" && (
 						<span className="mt-0.5 block text-[9px] font-semibold text-fuchsia-100">
-							Prize TBA
+							Cash details pending
 						</span>
 					)}
 				</p>
@@ -80,6 +81,9 @@ export function MapEventCard({
 					Goodies provided
 				</p>
 			)}
+			<div className="mt-2">
+				<RewardList rewards={event.rewards} compact />
+			</div>
 			<div className="mt-3 flex items-center gap-2 border-t border-white/[0.06] pt-2.5">
 				<button
 					type="button"

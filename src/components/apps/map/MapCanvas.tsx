@@ -125,7 +125,7 @@ function ClusterMarker({
 								{event.cashPrizeStatus === "announced"
 									? `${event.prizeCurrency} ${event.totalPrizeValue.toLocaleString()} in prizes`
 									: event.cashPrizeStatus === "unannounced"
-										? "Cash prize TBA"
+										? "Cash prize not listed"
 										: "No cash prize"}
 							</span>
 							{event.goodiesAvailable && (
@@ -133,6 +133,14 @@ function ClusterMarker({
 									Goodies provided
 								</span>
 							)}
+							{event.rewards.slice(0, 3).map((reward) => (
+								<span
+									key={reward.id}
+									className="mt-1 block text-[10px] font-medium text-violet-700"
+								>
+									{reward.name} · {reward.recipient}
+								</span>
+							))}
 							{cluster.approximateEventIds.includes(event.id) && (
 								<span className="block text-[10px] text-slate-500">
 									Approximate city-centre pin

@@ -29,6 +29,23 @@ export interface RawHackathonData {
 	endDateText?: string;
 	registrationDeadlineText?: string;
 	prizeText?: string;
+	rewards?: Array<{
+		name: string;
+		category?:
+			| "cash"
+			| "software"
+			| "credits"
+			| "certificate"
+			| "interview"
+			| "kit"
+			| "merchandise"
+			| "other";
+		recipient?: string;
+		details?: string;
+		amount?: number;
+		currency?: string;
+		sourceExcerpt: string;
+	}>;
 	tags: string[];
 	tracks: Array<{ title: string; description?: string; prizeText?: string }>;
 }

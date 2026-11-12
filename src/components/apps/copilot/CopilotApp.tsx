@@ -504,6 +504,15 @@ export function CopilotApp() {
 							Goodies / swag provided
 						</p>
 					)}
+					{hackathon && hackathon.rewards.length > 0 && (
+						<p className="mt-2 text-[9px] leading-4 text-violet-100/70">
+							Listed rewards:{" "}
+							{hackathon.rewards
+								.slice(0, 4)
+								.map((reward) => reward.name)
+								.join(" · ")}
+						</p>
+					)}
 					{hackathon && (
 						<a
 							href={hackathon.websiteUrl}

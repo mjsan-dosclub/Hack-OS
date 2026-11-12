@@ -22,6 +22,18 @@ export type HackathonFormat = (typeof HACKATHON_FORMATS)[number];
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 export type HackathonSource = (typeof HACKATHON_SOURCES)[number];
 export type CashPrizeStatus = (typeof CASH_PRIZE_STATUSES)[number];
+export const HACKATHON_REWARD_CATEGORIES = [
+	"cash",
+	"software",
+	"credits",
+	"certificate",
+	"interview",
+	"kit",
+	"merchandise",
+	"other",
+] as const;
+export type HackathonRewardCategory =
+	(typeof HACKATHON_REWARD_CATEGORIES)[number];
 
 export interface Coordinates {
 	latitude: number;
@@ -47,6 +59,7 @@ export interface Hackathon {
 	totalPrizeValue: number;
 	cashPrizeStatus: CashPrizeStatus;
 	goodiesAvailable: boolean;
+	rewards: HackathonReward[];
 	startDate: string;
 	endDate: string;
 	registrationDeadline: string | null;
@@ -56,6 +69,18 @@ export interface Hackathon {
 	tracks: HackathonTrack[];
 	tags: HackathonTag[];
 	createdAt: string;
+}
+
+export interface HackathonReward {
+	id: string;
+	name: string;
+	category: HackathonRewardCategory;
+	recipient: string;
+	details: string;
+	amount: number | null;
+	currency: string | null;
+	sourceExcerpt: string;
+	sourceUrl: string;
 }
 
 export interface HackathonTrack {
