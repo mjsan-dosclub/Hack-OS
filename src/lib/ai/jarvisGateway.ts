@@ -36,7 +36,9 @@ export function createJarvisModel(): LanguageModel {
 		baseURL: config.data.baseURL,
 		apiKey: config.data.apiKey,
 	});
-	return client(config.data.model);
+	//return client(config.data.model);
+	// vLLM serves the Chat Completions API; the SDK default is the Responses API.
+	return client.chat(config.data.model);
 }
 
 function errorMessage(error: unknown): string {
